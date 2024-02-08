@@ -1,0 +1,32 @@
+自定义一个类型:
+type LEIXING = string;
+
+定义一个泛型:
+type LEIXING_er<T> = T extends LEIXING ? string : number
+这里的逻辑是指  LEIXING_er 接受一个类型的值，如果他不是 string 那就是number
+
+可以这样用:
+let bianLiang : LEIXING_er<string> = "月影";
+
+但是这样的话:
+let bianLiang : LEIXING_er<string | boolean> = 1;
+这里的 bianLiang 会变成 LEIXING_er<string | number>  因为boolean不存在于自定义类型中，会被替换为上面那个三元表达式中的number
+
+还有个更复杂的写法:
+type LEIXING_yi = string | number;
+type  LEIXING_er<T> = T extends LEIXING ? string : 
+                      T extends LEIXING_yi ? symbol : boolean;
+
+多个条件判断
+
+let bianLiang : LEIXING_er<string | number> = 1;
+
+--------------------------------------------------------------------------
+完整匹配 给泛型T 还有要匹配的自定义类型加上中括号
+
+type LEIXING = string | number;
+
+type LEIXING_er<T> = [T] extends [LEIXING]? string : boolean
+
+let bianLiang : LEIXING_er<string> = "月影";  //这样的话会报错，因为没有完全匹配到LEIXING,.所以返回类型会是boolean
+

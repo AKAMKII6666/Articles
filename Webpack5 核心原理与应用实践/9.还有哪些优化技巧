@@ -1,0 +1,156 @@
+有哪些值得推荐的优化方案:
+首先要确保Webpack是新版本
+
+ 1.lazyCompilation
+Webpack 5.17.0 之后引入实验特性 lazyCompilation，用于实现 entry 或异步引用模块的按需编译，
+这是一个非常实用的新特性！
+
+配置方法:
+// webpack.config.js
+module.exports = {
+  // ...
+  experiments: {
+    lazyCompilation: true,
+  },
+};
+
+启用以后异步加载的模块都不会立刻被编译，直到访问它们时才会开启编译。
+
+lazyCompilation 支持如下参数：
+
+ - backend： 设置后端服务信息，一般保持默认值即可；
+ - entries：设置是否对 entry 启动按需编译特性；
+ - imports：设置是否对异步模块启动按需编译特性；
+ - test：支持正则表达式，用于声明对那些异步模块启动按需编译特性。
+
+lazyCompilation 还处于试验阶段，建议dev模式开启就好了
+
+-------------------------------------------------------------------------------
+约束loader的文件执行范围也能加速webpack的运行效率
+
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        /*
+            排除某些目录
+        */
+        exclude: /node_modules/,
+        use: ["babel-loader", "eslint-loader"],
+      },
+    ],
+  },
+};
+
+-------------------------------------------------------------------------------
+使用 noParse 跳过文件编译
+有不少 NPM 库已经提前做好打包处理,所以一些文件或者库可以制定不需要编译:
+
+ - Vue2 的 node_modules/vue/dist/vue.runtime.esm.js 文件；
+ - React 的 node_modules/react/umd/react.production.min.js 文件；
+ - Lodash 的 node_modules/lodash/lodash.js 文件。
+
+// webpack.config.js
+module.exports = {
+  //...
+  module: {
+    noParse: /lodash|react/,
+  },
+};
+
+使用 noParse 时需要注意：
+
+ - 由于跳过了前置的 AST 分析动作，构建过程无法发现文件中可能存在的语法错误，需要到运行（或 Terser 做压缩）
+ 时才能发现问题，所以必须确保 noParse 的文件内容正确性；
+ - 由于跳过了依赖分析的过程，所以文件中，建议不要包含 import/export/require/define 等模块导入导出语句 —— 
+ 换句话说，noParse 文件不能存在对其它文件的依赖，除非运行环境支持这种模块化方案；
+ - 由于跳过了内容分析过程，Webpack 无法标记该文件的导出值，也就无法实现 Tree-shaking。
+
+综上，建议在使用 noParse 配置 NPM 库前，先检查 NPM 库默认导出的资源满足要求，例如 React@18 
+默认定义的导出文件是 index.js：
+
+// react package.json
+{
+  "name": "react",
+  // ...
+  "main": "index.js"
+}
+
+但 node_module/react/index.js 文件包含了模块导入语句 require：
+
+// node_module/react/index.js
+'use strict';
+
+if (process.env.NODE_ENV === 'production') {
+  module.exports = require('./cjs/react.production.min.js');
+} else {
+  module.exports = require('./cjs/react.development.js');
+}
+
+此时，真正有效的代码被包含在 react.development.js（或 react.production.min.js）中，但 Webpack 只会打包
+这段 index.js 内容，也就造成了产物中实际上并没有真正包含 React。针对这个问题，我们可以先找到适用的代码文件
+，然后用 resolve.alias 配置项重定向到该文件：
+
+// webpack.config.js
+module.exports = {
+  // ...
+  module: {
+    noParse: /react|lodash/,
+  },
+  resolve: {
+    alias: {
+      react: path.join(
+        __dirname,
+        process.env.NODE_ENV === "production"
+          ? "./node_modules/react/cjs/react.production.min.js"
+          : "./node_modules/react/cjs/react.development.js"
+      ),
+    },
+  },
+};
+
+这样的话就可以根据环境直接调用相应已经打包好的文件而不是直接让webpack再打包一遍这些外部模块
+使用 externals 也能将部分依赖放到构建体系之外，实现与 noParse 类似的效果，详情可查阅官网。
+
+------------------------------------------------------------------------------
+开发模式禁用产物优化
+
+module.exports = {
+  // ...
+  mode: "development",
+  optimization: {
+    //这个是指检测模块重复打包的问题
+    //在开发模式下可以不用关心模块重复打包的问题
+    removeAvailableModules: false,
+    //检测是否有空分支，这里为true的话，空分支将被移除
+    //但是开发模式下可以不用移除空分支,少了这部分操作，wp的运行效率会变快
+    removeEmptyChunks: false,
+    //保持默认值或 false，关闭代码分包；
+    splitChunks: false,
+    //保持默认值或 false，关闭代码压缩；
+    minimize: false,
+    //保持默认值或 false，关闭模块合并；
+    concatenateModules: false,
+    //保持默认值或 false，关闭 Tree-shaking 功能；
+    usedExports: false,
+  },
+};
+
+-----------------------------------------------------------------------------
+最小化 watch 监控范围
+
+在 watch 模式下（通过 npx webpack --watch 命令启动），Webpack 会持续监听项目目录中所有代码文件，
+发生变化时执行 rebuild 命令。
+
+不过，通常情况下前端项目中部分资源并不会频繁更新，例如 node_modules ，此时可以设置 watchOptions.ignored 
+属性忽略这些文件，例如：
+
+// webpack.config.js
+module.exports = {
+  //...
+  watchOptions: {
+    ignored: /node_modules/
+  },
+};

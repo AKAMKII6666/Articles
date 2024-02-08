@@ -1,0 +1,102 @@
+1.react的dom构建:
+react的dom构建主要依赖于babel的jsx解析能力
+2.babel会把我们写的jsx转换成reactElement
+3.使用createElement方法把reactElement转换成vDom
+4.使用reactDom.render方法将vDom转换并挂载到页面上去
+    render  调用 mount 调用 createDom 调用 genChildren
+5.函数组件的创建直接调用它本身返回创建出来的reactelement 然后 createDom
+6.class组件就不太一样，需要实例化它并调用它的render方法，前提是需要一个react.component的父类
+7.state的更新，实际上setState之后就会触发upDater对象的addState方法，
+            addState --》 emitUpdate --》 updateComponent --》
+    然后在这里通过upDater.getState拿到最新的state之后，扔到shoudUpdate一个外部的独立函数中执更新
+    这个shoudUpdate会调用组件本身的forceUpdate方法
+    forceUpdate又去使用reactdom的toVnode函数更新真实的dom节点
+8.但是一般情况下，在react托管了的事件里，react会合并状态更新的过程，称作“事件合并”
+    react的事件触发的时候，react会调用document上的全局事件代理根据target找到对应元素的事件，
+    并将updateQueue.isBanchData设为true然后击发事件，事件执行完毕以后（也就是里面的状态更改的请求全部都推送到对应的updater里面以后）
+    再调用updateQueue对列队里的updater进行更新操作，从而触发render的更新，当事件触发好，并调用完updateQueue中的batchUpdater之后，再把
+    updateQueue.isBanchData设为false，以应对可能发生的非react更新事件.
+9.一个组件的第一次挂载会以递归的方式将它的子组件都通过createDom的方式挂上去。
+  更新的时候就不一样了，当更新的时候会触发patch方法传入oldVdom和newVdom进行diff算法 简单地diff算法如下:
+  - 当新节点和老节点都没有的时候，就返回undefined
+  - 当新节点有，老节点没有的时候，就去创建新的节点（mountVnode）并返回创建出来的真实dom
+  - 当老节点有，新的节点没有，就去(unmount)老的节点，并返回undefined
+  - 当新节点有，老的节点也有，就进行对比
+    -- 当新节点与老节点的节点类型不一致，就卸载老(unmount)节点，并创建（mountVnode）新的节点，返回新节点的真实dom
+    -- 当新节点与老节点的节点类型一致，就进行更新 
+        --- 如果都是文本类型的节点，就更新文本内容
+        --- 如果都是普通的dom类型,就更新属性，并调用updateChildren做diff更新
+            ---- updateChildren的逻辑，首先会传入“新孩子”和“旧孩子”两个数组
+            ---- 使用旧孩子数组做成一个堆数据｛key|循环index : 旧vdom节点｝
+            ---- 声明一个lastPlaceIndex  对比时的浮动指示
+            ---- 声明一个patch数组，用于记录需要操作的命令，例如移动，和增加
+            ---- 然后循环“新孩子”数组通过新孩子数组中的key或者index通过旧孩子堆数据去寻找对应的旧孩子vnode
+            ---- 如果通过这个key或者index能找到旧孩子，那么就进行递归更新updateElement（“新孩子”，“旧孩子”）
+                    判断当前旧孩子的mountIndex是不是小于记录的lastPlaceIndex，小的话说明发生了移动，要把新孩子
+                    插入到对应的位置上去，于是要往patch里加入一个移动的操作指令。并且要把旧孩子堆数据中对应的节点
+                    删掉。并更新索引值到当前的索引。
+            ---- 如果通过这个key或者index能找不到旧孩子，说明需要插入，那么就要向patch里加入一个插入命令。
+            ---- 以上动作全部做完，就将需要移动的vnode从patch数组里全部拿出来。然后将当前旧孩子堆数据(此时只有在新孩子
+                    里要被删除的数据还留着)和需要移动的vnode合并成一个数组(因为需要移动的vnode不能再呆在原地了)，
+                    将它们的真实dom全部删除。
+            ---- 使用一个循环，循环patch中的动作，处理插入和移动
+                 ----- 如果是增加的动作，就createDom,并检查当前插入动作的下一个相邻节点有没有，有的话插入到它前面去
+                        没有的话就直接在parentNode中内容的末尾插入
+                 ----- 如果是移动的动作，就拿到之前的dom引用，检查当前插入动作的下一个相邻节点有没有，有的话插入到它前面去
+                        没有的话就直接在parentNode中内容的末尾插入
+
+        --- 如果是class组件或者函数式组件，就调用相应的更新逻辑
+            ---- 更新class组件，首先是更新不是创建，所以先将newVnode.classInstance = oldVdom.classInstance
+                 然后将新的props传入到newVnode.classInstance里去并调用它相应的声明周期钩子，然后emitUpdate它会调用forceUpdate进行强制更新。
+            ---- 更新function组件，首先运行vdom里的func组件的本体，获得func组件的vdom,然后用func组件的vdom进行递归更新，拿到真实dom
+
+在对比类型的时候，实际上就已经对比了两个class组件不一样，或者func组件不一样的情况了。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

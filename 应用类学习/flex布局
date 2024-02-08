@@ -1,0 +1,606 @@
+https://www.ruanyifeng.com/blog/2015/07/flex-grammar.html
+https://juejin.cn/post/6844903736582602760
+Flex 布局教程：语法篇
+
+Flex布局，可以简洁，完整，响应式地实现各种页面布局。
+Flex又叫弹性布局
+
+====================================================================
+====================================================================
+====================================================================
+
+任何一种容器都可以被指定为flex布局
+
+通过设置display为flex,就可以对容器设置成flex
+
+.box{
+    display:flex;
+}
+
+行内元素也可以使用flex布局
+.box{
+    display:inline-flex;
+}
+
+设置为flex布局之后，float,clear,和vertical-align属性将失效
+
+------------------------------------------------------------------
+基本概念
+采用Flex布局的元素，称为Flex容器，简称“容器”。它的所有子元素自动称为容器成员，称为Flex项目，简称项目
+
+容器默认存在两根轴，水平的主轴和垂直的交叉轴。主轴的开始位置（与边框的交叉点）叫做main start,结束位置
+叫main end， 交叉轴的开始位置叫做cross start,结束位置叫做cross end.
+
+项目默认沿主轴排列。单个项目占据的主轴空间叫main size,占据的交叉轴空间叫做cross size。
+
+
+-------------------------------------------------------------------
+容器的属性
+
+一下六个属性设置在容器上:
+ flex-direction
+ flex-warp
+ flex-flow
+ justify-content
+ align-items
+ align-content
+
+--------------------------------------------------------------------
+flex-direction属性决定主轴的方向
+.box{
+    flex-direction: row | row-reverse | column | column-reverse
+}
+
+它有四个值，定义主轴的方向：
+row 意为主轴从作到右， mainstart 在左边  mainend在右边
+row-reverse 意为主轴从右到左，mainstart在右边  mainend在左边
+column  意为从上到下，mainstart 在上面，mainend在左边
+column-reverse 意为从下到上，mainstart在下面 mainend在上面
+
+-------------------------------------------------------------------
+flex-warp 决定容器内元素的换行为
+需要注意的是，每换一行，主轴就会多出一根
+每行都有一个主轴
+默认情况下，项目都排在一条线（就是轴线）上。flex-warp属性定义，如果一条轴线
+排不下，如何换行
+
+.box{
+    flex-warp:nowarp | warp | warp-reverse;
+}
+
+它有三个值
+nowarp 不换行，不管多少元素，元素将根据容器宽度挤下来
+warp 换行，第一行在上方 从左到右
+warp-reverse 换行，第一行在下方，从左到右
+
+-------------------------------------------------------------------
+flex-flow
+flex-flow是flex-direction\flex-warp的组合简写形式
+默认值为: flex-flow:row nowarp;
+
+-------------------------------------------------------------------
+justify-content 属性控制容器内元素在主轴上的对齐方式
+
+.box{
+    justify-content: flex-start | flex-end | center | space-between | space-around;
+}
+
+ flex-start 所有元素左对齐
+ flex-end 所有元素右对齐
+ center 所有元素横向居中
+ space-between 所有对象排除左右边距平均排列
+ space-around 所有对象包含左右边距平均排列
+ -------------------------------------------------------------------
+ align-items 
+
+align-items属性定义项目在交叉轴上如何对齐
+.box{
+    align-items:flex-start | flex-end | center | baseLine | stretch;
+}
+
+flex-start : 从上到下，从交叉轴的cross start 到cross end
+flex-end : 从下到上，从交叉轴的cross end到cross start
+center : 排列到 cross start 与 cross end 之间
+baseline : 根据子元素的文字位置排列所有元素进行对齐
+stretch : 将子元素的顶部与cross start对齐 将子元素的底部与cross end对齐,让子元素的
+高度随着交叉轴的长度变化
+
+--------------------------------------------------------------------
+align-content 属性定义多根主轴在交叉轴上的对齐方式。
+.box{
+    align-content: flex-start | flex-end | center | space-between | space-around | stretch
+}
+
+该属性可能取6个值。
+
+flex-start：与交叉轴的起点对齐。
+flex-end：与交叉轴的终点对齐。
+center：与交叉轴的中点对齐。
+space-between：与交叉轴两端对齐，轴线之间的间隔平均分布。
+space-around：每根轴线两侧的间隔都相等。所以，轴线之间的间隔比轴线与边框的间隔大一倍。
+stretch（默认值）：轴线占满整个交叉轴。
+
+====================================================================
+====================================================================
+====================================================================
+flex 项目容器的属性
+
+项目容器的属性有6个:
+order           定义项目的排列顺序
+flex-grow
+flex-shrink
+flex-basis
+flex
+align-self
+
+-------------------------------------------------------------------
+order 属性定义项目的排列顺序。数值越小，排列越靠前，默认为0。
+.item{
+    order:0;
+}
+
+-------------------------------------------------------------------
+flex-grow 属性定义项目的放大比例，默认为0.即如果存在剩余空间，也不放大。
+.item{
+    flex-grow:1;
+}
+
+如果所有项目的flex-grow属性都为1，则它们将等分剩余空间。如果一个项目的flex-grow
+属性为2，其它项目都为1，则前者占据剩余空间将比其它项多一倍。
+
+-------------------------------------------------------------------
+flex-shrink 
+该属性和上文提到的属性正好相反，是收缩比例属性。
+.item{
+    flex-shrink:1;/*默认为1*/
+}
+
+如果所有项目的flex-shrink属性都为1，当空间不足时，都将等比例缩小。如果一个项目的
+flex-shrink属性为0，其它项目都为1，则空间不足时，前者不缩小。
+-------------------------------------------------------------------
+flex-basis属性
+flex-basis属性定义了在分配多余空间之前，项目占据的主轴空间。浏览器根据这个属性，计算主轴是
+否有多余的空间。它的值为auto,即项目的本来大小。
+.item{
+    flex-basis:auto;/*默认为auto*/
+}
+这个属性可以设置为width或者height属性一样的单位值，例如10px，它将占据flex容器中固定的空间
+-------------------------------------------------------------------
+flex
+属性是flex-grow, flex-shrink 和 flex-basis的简写，默认值为0 1 auto。后两个属性可选。
+.item {
+  flex: none | [ <'flex-grow'> <'flex-shrink'>? || <'flex-basis'> ]
+}
+该属性有两个快捷值：auto (1 1 auto) 和 none (0 0 auto)。
+
+建议优先使用这个属性，而不是单独写三个分离的属性，因为浏览器会推算相关值。
+
+--------------------------------------------------------------------
+align-self属性
+align-self属性允许单个项目与其他项目不一样的对齐方式，可覆盖align-items属性。默认值为auto,表示
+继承父元素的align-items属性，如果没有父元素，则等同于stretch.
+.item {
+  align-self: auto | flex-start | flex-end | center | baseline | stretch;
+}
+
+该属性可取6个值，除了auto，其他都与align-items属性完全一致。
+
+其实就是单独定义flex项目的对其方式
+
+============================================================================
+补充知识点：
+display：
+flex： 将对象作为弹性伸缩盒显示
+inline-flex：将对象作为内联块级弹性伸缩盒显示 
+
+意思是，flex布局，会将容器的display设置为
+display:block
+然后才是
+display:flex
+意为:
+display:block-flex
+
+这样一来容器首先是块级元素，才约定子项目为flex布局
+
+inline-flex
+的意思是，首先容器是内联布局，然后才约定子项目为flex布局
+
+=============================================================================
+再补充一个知识点:
+box-sizing:
+box-sizing的默认值是content-box,如果一个容器设置width为100px 那么他的内容宽度就是100px
+但是不算上它的padding border margin这些属性占用的空间。
+如果设置为border-box的话，那么就会将padding border margin这些属性计算在内包括内容区域，
+浏览器会调整所有这些的整体宽度为100px
+
+
+=============================================================================
+
+练习1：
+不换行的横排自适应布局：
+<div className="D277957_flexContainer">
+    <div className="flexItem">1</div>
+    <div className="flexItem">2</div>
+    <div className="flexItem">3</div>
+    <div className="flexItem">4</div>
+    <div className="flexItem">5</div>
+    <div className="flexItem">6</div>
+    <div className="flexItem">7</div>
+    <div className="flexItem">8</div>
+    <div className="flexItem">9</div>
+    <div className="flexItem">10</div>
+</div>
+
+
+/*
+Flex这个布局的特性就是需要flex容器给出固定宽度
+内容可以支撑其高度，
+每行所有的flex-item的高度都以这一行最高高度为准
+如果设置了换行了的话，第二行的高度不会和第一行一样
+*/
+.D277957_flexContainer{
+    width:600px;
+    height:200px;
+    background-color: rgb(209, 219, 255);
+
+    /*
+        设置了display:flex的，
+        默认情况下他的项目的
+        align-items为stretch，也就是跟随父级节点进行伸展
+        flex-warp为nowarp
+    */
+    display:flex;
+    flex-direction: row;
+    
+
+   
+
+    .flexItem{
+        overflow: hidden;
+        /*
+            flex-basis 属性是用来定最小大小的，
+            用来方便flex在浏览器里的计算，
+            因为flex-grow需要刨除基础大小进行计算，
+            如果每个项目的基础大小都不一样，
+            那么算出来的均等值也不一样
+
+            其实和min-width实现的效果差不多一个意思
+            但是min-width因为不是flex属性，所以不会参与到flex计算里面来
+            这样一来flex布局会计算出错，所以尽量使用flex-basis来固定一个
+            最小大小，用于便于flex计算
+        */
+        flex-basis:20px;
+        /*
+            设置flex-grow为1意味着所有项目的宽度在父组件里均等划分
+        */
+        flex-grow:1;
+        border:1px solid #454545;
+        background-color: rgb(208, 208, 208);
+        text-align: center;
+        margin: 20px;
+    }
+}
+
+---------------------------------------------------------------------------------
+
+.D277957_flexContainer{
+    width:100%;
+    height:200px;
+    background-color: rgb(209, 219, 255);
+    display:flex;
+    flex-direction: row;
+    /*
+        子元素设置了最大宽度的情况下，可以使用
+        justify-content来设置对齐方式
+    */
+    justify-content:space-around;
+    /*
+        这样的对齐方式相当于以前写类似的布局的时候需要使用
+        table来控制自动间距
+    */
+
+   
+
+    .flexItem{
+        overflow: hidden;
+        flex-basis:20px;
+        flex-grow:1;
+        border:1px solid #454545;
+        background-color: rgb(208, 208, 208);
+        text-align: center;
+        margin: 20px;
+
+        /*
+            设置了最大宽度的情况下，可以使用
+            justify-content来设置对齐方式
+        */
+        max-width: 100px;
+        
+    }
+}
+
+
+
+===============================================================================
+左右布局，以前用Float卡bug才能写出来的东西
+
+<div className="D277957_flexContainer">
+    <div className="flexItem left">1</div>
+    <div className="flexItem right">2</div>
+</div>
+
+
+
+.D277957_flexContainer{
+    width:100%;
+    height:200px;
+    background-color: rgb(209, 219, 255);
+    display:flex;
+    flex-direction: row;
+
+   
+
+    .flexItem{
+        overflow: hidden;
+
+        
+        flex-basis: 10px;
+        flex-grow:800;
+        border:1px solid #454545;
+        background-color: rgb(208, 208, 208);
+        text-align: center; 
+    }
+
+    .left{
+        flex-grow:200;
+    }
+    
+}
+
+
+左右布局的话主要取决于属性
+
+flex-grow:800;
+
+这个元素的值会和相较于大、或小的同轴的值形成比例关系
+然后根据目前容器的宽度来计算这样的比例，并给出具体宽
+度对元素进行渲染
+
+
+flex布局左右的方式只限于不可调整菜单的情况下
+
+===============================================================================
+模拟app的title栏目:
+<div className="D277957_flexContainer">
+    <div className="flexItem ">{"<"}</div>
+    <div className="flexItem center">这是应用的标题</div>
+    <div className="flexItem "></div>
+</div>
+
+.D277957_flexContainer{
+    width:100%;
+    height:200px;
+    background-color: rgb(209, 219, 255);
+    display:flex;
+    flex-direction: row;
+
+   
+
+    .flexItem{
+        overflow: hidden;
+
+        
+        flex-basis: 10px;
+        flex-grow:200;
+        border:1px solid #454545;
+        background-color: rgb(208, 208, 208);
+        text-align: center; 
+    }
+
+    .center{
+        flex-grow:800;
+    }
+    
+}
+
+
+===============================================================================
+自适应异形布局，以前table才能做的事情:
+┌───────────┬─────────────┬──────────────────┐
+│           │             │                  │
+│           │             │                  │
+│           │             │                  │
+│           │             │                  │
+│           ├─────────────┼──────────────────┤
+│           │             │                  │
+│           │             │                  │
+│           │             │                  │
+│           │             │                  │
+│           │             │                  │
+└───────────┴─────────────┴──────────────────┘
+
+flex容器可以嵌套，一个flex-item可以设置 display:flex 进行使用
+所以我们使用flex嵌套的特性完成上面的布局
+
+
+
+
+<div className="D277957_flexContainer">
+    <div className="flexItem_s">1</div>
+    <div className="flexItem_s">
+        <div className="flexItem_ss">
+            <div className="flexItem_sss">内容1</div>
+            <div className="flexItem_sss">内容2</div>
+            <div className="flexItem_sss">内容3</div>
+        </div>
+        <div className="flexItem_ss">
+            <div className="flexItem_sss">内容1</div>
+            <div className="flexItem_sss">内容2</div>
+            <div className="flexItem_sss">内容3</div>
+        </div>
+    </div>
+</div>
+
+
+
+.D277957_flexContainer{
+    height:200px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    border:1px solid #454545;
+
+    .flexItem_s{
+        border:1px solid #454545;
+        margin:3px;
+        flex-basis: 10px;
+    }
+
+    .flexItem_s:nth-child(1){
+        flex-grow: 200;
+    }
+
+    /*
+        这个位置设置这个flex-item为flex容器
+        因为是竖排的，所以设置flex的主轴为纵向
+    */
+    .flexItem_s:nth-child(2){
+        flex-grow: 1000;
+        display: flex;
+        flex-direction: column;
+
+        /*
+            竖排主轴的情况下不设置flex-grow是不会进行flex计算的
+            然后再设置这个元素为flex容器，继续深入
+        */
+        .flexItem_ss{
+            border:1px solid #454545;
+            margin:3px;
+            flex-grow: 1;
+            flex-basis: 10px;
+            display: flex;
+            /*这一级只需要主轴横向就好了*/
+            flex-direction: row;
+            .flexItem_sss{
+                border:1px solid #454545;
+                margin:3px;
+                flex-basis: 10px;
+               flex-grow: 1;
+            }
+        }
+    }
+}
+
+
+====================================================================================
+登录框居中对齐Flex版本
+
+<div className="D277957_flexContainer">
+    <div className="flexItem_s">1</div>
+</div>
+
+.D277957_flexContainer{
+    position:fixed;
+    width:100%;
+    height:100%;
+    background-color: rgb(170, 170, 170);
+    display: flex;
+    /*
+        使用justify-content设置内容元素绕主轴居中
+    */
+    justify-content: center;
+    /*
+        使用align-items设置内容元素绕交叉轴居中
+    */
+    /*
+        align-items适用于单行
+        align-content适用于多行
+    */
+    align-items: center;
+
+
+    .flexItem_s{
+        width:500px;
+        height:500px;!!!!HTML_
+        background-color: #fff;
+    }
+}
+
+
+
+
+
+
+
+
+
+====================================================================
+面试题复盘:
+1.flex布局的容器属性分别是有哪些，它们是做什么的？
+
+ flex-direction     用来指定内容的排列方向
+ flex-warp          用来指定内容是否换行显示
+ flex-flow          以上两个属性的简写体
+ 
+     用来指示内容项目如何排列， flex-start | flex-end | center | space-between | space-around
+ align-items        用来在单行情况下指示内容元素垂直居中的 flex属性 flex-start | flex-end | center | baseLine | stretch
+ align-content      在多行情况下指示内容元素的交叉轴对其方式  flex-start | flex-end | center | space-between | space-around | stretch
+
+
+2.flex布局的子项目的属性分别有哪些，它们是做什么的？
+
+order           定义项目的排列顺序
+flex-grow       定义放大比例
+flex-shrink     定义缩小比例
+flex-basis      定义放大、缩小比例时的基数，可以解决在使用flex-grow的时候宽度没有平均计算的问题
+flex            flex属性是flex-grow,flex-shrink,flex-basis的简写。
+align-self      可以自定义flex项目自己单独的与交叉轴对齐的方式。
+
+3.你一般把flex布局用在什么地方?
+一般用在登录界面，可以用flex容器属性的justify-content align-items 来进行居中操作
+还有在左右布局，例如系统后台的左右布局的时候可以使用
+甚至系统后台的上下布局也可以使用
+用在一些横铺的豆腐块列表上也可以
+甚至可以做异形布局，例如左一，右二
+
+省了很多事，以前一些很复杂的卡float bug的方式，以及需要用table来实现的复杂布局
+现在flex一站式解决了甚至能做更多更特别的布局
+
+4.box-sizing是用来干啥的？
+这个就要聊到浏览器的盒子模型，盒子模型是由width height  margin border padding组成的。
+box-sizing是用来调整盒子模型的盒子绘制方式的，
+例如使用了content-box属性的话，盒子的宽度设置为100px 但是最终宽度会算成100px也就是内容宽度 + margin + padding + border
+但是如果设置了border-box的话，盒子模型的计算方式会变成在100像素之内把内容宽度，margin padding border都算进去
+
+这个可以用在一些满满当当刚好算好大概容器宽度是多少，内容宽度是多少这样的情况下。
+
+实际上这个我用得很少，因为基本上flex布局都能解决，就算不用flex布局，我自己也一直有手算的习惯。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

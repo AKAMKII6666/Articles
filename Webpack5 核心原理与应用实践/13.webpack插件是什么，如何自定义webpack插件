@@ -1,0 +1,79 @@
+webpack插件是什么？如何自定义插件?
+上一节说过Loader就是文件筛选处理器，用于筛选相关文件并做出相应处理的一种webpack流程组件.
+那么既然有这么好的自定义组件，为什么还有webpack插件这种东西呢？webpack插件究竟是用来做什么的？怎么用?
+
+webpack插件是一种比loader更灵活地webpack组件，它可以控制webpack中打包流程里的一切，通过实现
+webpack中种类庞大的Hook几乎可以完成任何事情,甚至改写webpack.
+
+-------------------------------------------------------------------------------
+插件简介:
+从形态上看，插件通常是一个带有apply函数的类：
+class SomePlugin {
+    apply(compiler) {
+    }
+}
+
+webpack在调用这个插件的时候，会通过调用这个插件的apply方法，将编译器对象传入:
+class SomePlugin {
+  apply(compiler) {
+    compiler.hooks.thisCompilation.tap("SomePlugin", (compilation) => {
+      compilation.addModule(/* ... */);
+    });
+  }
+}
+
+---------------------------------------------------------------------------------
+Tapable是webpack插件架构的核心支架，本文就是围绕订阅/发布模式叠加各种特化逻辑，适配webpack体系下复杂的
+事件源-处理器之间交互需求。
+
+Tapable使用时通常需要经历如下步骤:
+ - 创建钩子实例
+ - 调用订阅接口注册回调，包括：tap,tapAsync,TapPromise
+ - 调用发布接口触发回调，包括：call,callAsync,promise
+----------------------------------------------------------------------------------
+
+WebpackHook 有两个重点，一是上面介绍的触发时机；二是触发时传递的上下文参数。例如：
+ - compiler.hooks.compilation ：
+    --时机：Webpack 刚启动完，创建出 compilation 对象后触发；
+    --参数：当前编译的 compilation 对象。
+ - compiler.hooks.make：
+    --时机：正式开始构建时触发；
+    --参数：同样是当前编译的 compilation 对象。
+ - compilation.hooks.optimizeChunks ：
+    --时机： seal 函数中，chunk 集合构建完毕后触发；
+    --参数：chunks 集合与 chunkGroups 集合。
+ - compiler.hooks.done：
+    --时机：编译完成后触发；
+    --参数： stats 对象，包含编译过程中的各类统计信息。
+
+每个钩子传递的上下文不同，但主要包含以下几种类型:
+
+ - complation对象:构建管理器，使用频率非常高，主要提供了一系列与单词构建相关的接口，包括：
+    --addModule:用于添加模块，例如Module遍历出依赖之后，就会调用该接口将新模块添加到构建需求中。
+    --addEntry:添加新的入口模块，效果与直接定义entry配置相似；
+    --emitAsset：用于添加产物文件，效果与LoaderContext的emitAsset相同；
+    --getDependencyReference:从给定模块返回对依赖项的引用，常用于计算模块引用关系；
+ - compiler 对象：全局构建管理器，提供如下接口：
+    --createChildCompiler:创建子compiler对象，子对象将继承原始Compiler对象的所有配置数据；
+    --createCompilation:创建compilation对象，可以借此实现并行编译；
+    --close:结束编译；
+    --getCache:获取缓存接口，科技次复用Webpack5的缓存功能；
+    --getInfrastructureLogger:获取日志对象;
+ - module 对象：资源模块，有诸如NormalModule.RawModule.ContectModule等子类型，其中NormalModule使用
+ 频率较高，提供如下接口:
+   - identifier:读取模块的唯一标识
+   - getCurrentLoader:获取当前正在执行的Loader对象
+   - originalSource:读取模块原始内容
+   - serialize/deserialize:模块序列化与反序列化函数，用于实现持久化缓存，一般不需要调用
+   - issuer:模块的引用者；
+   - isEntryModule:用于判断该模块是否为入口文件
+ - chunk 对象：模块封装容器，提供如下接口：
+   - addModule:添加模块，之后这个被添加进去的模块会和Chunk一起呗打包成产物
+   - removeModule:删除模块；
+   - cantainsModule:判断是否包含某个特定模块
+   - size:推断最终构建出的产物大小
+   - hasRuntime:判断Chunk中是否包含运行时代码
+   - updateHash:计算hash值。
+ - stats 对象：构建过程收集到的统计信息，包括模块构建耗时，模块依赖关系，产物文件列表等。
+-----------------------------------------------------------------------------------
+

@@ -1,0 +1,69 @@
+grid布局由两条“轨道”组成
+
+横向的为  行轨道
+纵向的为  列轨道
+
+开启grid布局,给容器设置:
+.gridElem{
+    display:grid;
+}
+
+这样一来容器的子元素就会自动被设置成grid元素
+
+.gridElem{
+    display:grid;
+    /*使用这种方式设置grid为三列，并且每列宽度为100px*/
+    grid-template-columns:100px 100px 100px;
+    /*或者使用fr来制定浮动宽度(自适应宽度)*/
+    grid-template-columns:1fr 1fr 1fr;
+}
+
+使用clumn-gap来设置列间距:
+
+.gridElem{
+    display:grid;
+    grid-template-columns:100px 100px 100px;
+    /*设置列间距*/
+    clumn-gap:20px;
+    /*设置行间距*/
+    row-gap:20px;
+}
+
+我们可以使用字面意义的方式表达我们要使用grid如何布局：
+
+.gridElem{
+    display:grid;
+    grid-template-areas:
+    "header header header"
+    "left right right"
+    "footer footer footer";
+}
+
+这段的意思是，我希望这个表格有三行三列
+第一行用header占满
+
+第二行的三分之一的左边为left右边全部都是right
+第三行都是footer占满
+
+然后再定义每个元素的样式:
+.header{
+    grid-area:header;
+}
+
+.left{
+    grid-area:left;
+}
+
+.right{
+    grid-area:right;
+}
+
+.footer{
+    grid-area:footer;
+}
+
+
+其它的容器属性和flex类似，是用来做对齐方式的：
+align-content:  用来做纵轴方向的对齐
+justify-content:  用来做横轴方向上的对齐
+

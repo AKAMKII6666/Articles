@@ -1,0 +1,26 @@
+https://www.bilibili.com/video/BV1av4y1w7ng/?spm_id_from=333.788&vd_source=d54a9019cfd533224c65212f0eaf5180
+
+type LEIUXING = {
+	name: string,
+	age:number,
+	isMan:boolean
+};
+
+假如有上面这样的类型
+
+然后希望直接得到上面类型的集合:
+type LEIXING_JIHE = string|number|boolean;
+
+我们可以这样做:
+
+type GETTYPES<T> = T extends {name: infer M,age: infer M,isMan: infer M} ? M : T;
+
+type LEIXING_JIHE = GETTYPES<LEIUXING>;
+------------------------------------------------------------
+通过遍历的方式完成
+
+type GETTYPES<T> = {
+	[K in keyof T]:T[K] extends (infer U) ? U : K
+}[keyof T]
+
+type LEIXING_JIHE = GETTYPES<LEIUXING>; //string|number|boolean;

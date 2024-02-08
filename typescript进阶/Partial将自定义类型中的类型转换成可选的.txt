@@ -1,0 +1,21 @@
+type LEIXING = {
+    name:string,
+    age:number,
+    type:string
+}
+
+type PARTIAL<T> = {
+    [P in key of T]? :t[P]
+}
+
+let bianliang: PARTIAL<LEIXING> = {
+    name:"asdasd"
+}
+
+-----------------------------------
+ts已经提供了相关的操作了:
+
+let bianliang: Partial<LEIXING> = {
+    name:"asdasd"
+}
+

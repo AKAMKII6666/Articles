@@ -1,0 +1,16 @@
+https://blog.csdn.net/Jack_lzx/article/details/121228647
+
+在使用react内置的合并事件的时候，setstate表现为异步
+因为react会debonce掉所有频繁设置state的动作。
+这样的话就要等到componentDidUpdate之后才能拿到state
+
+但是在原生的事件或者代码块中操作setstate之后，就会同步
+因为react的setstate本来就是同步的，只是在react的事件块中表现为异步而已。
+
+setState的第二个参数
+this.setState({name:"asdasd"},function(){
+    //在这里取出刚刚设置好的状态
+    console.log(this.state.name);
+
+});
+

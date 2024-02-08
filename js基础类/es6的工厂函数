@@ -1,0 +1,74 @@
+[es6]工厂函数、构造函数、class<构造函数的语法糖>
+
+本质：
+1.es6中的class本质上是构造函数的语法糖，二者都需new
+2.工厂函数无法new,需要在函数内部用代码的方式创建一个新的对象返回
+3.react的函数组件<DiyDalog/>就相当于运行了一个工厂函数，创建了一个新的组件对象
+
+
+到了es6时代，我们创建对象的手段又增加了，在不同场景下我们可以通过不同的手段建立。
+现在主要有三种方式来讲构对象：
+
+class关键字
+构造函数
+工厂函数
+
+它们都是创建对象的手段，但是却又有不同的地方，平时开发时也要针对这不同来选择。
+
+//class关键字
+class classCar{
+    //定义方法
+    drive(){
+        console.log("运行了方法");
+    }
+}
+
+const car1 = new classCar();
+console.log(car1.drive);
+
+
+//构造函数
+const classCar = function(){
+    let self = this;
+    this.drive = function(){
+        console.log("运行了方法");
+    }
+}
+
+const car1 = new classCar();
+console.log(car1.drive);
+
+//工厂函数
+//定义一个原型
+const carProto = {
+    drive(){
+       console.log("运行了方法"); 
+    }
+}
+
+//定义一个工厂函数
+const makeCar = function(_car){
+    return Object.create(_car);
+}
+
+const car = makeCar(carProto);
+car.drive();
+
+这些方法都是基于原型的创建，而且都支持在构造时，函数中，私有变量的实现。换句话说，这些函数
+拥有着大部分相同的特性，甚至在很多场景下，它们是等价的。
+
+在javascript中，每一个函数都能返回一个新的对象。当它不是构造函数或者类的时候，它就被称为工
+厂函数。
+
+ES6的类其实是构造函数的语法糖，所以接下来讨论的所有内容都适用于构造函数的也适用于类：
+Open/Closed法则：Api应该开放拓展，避免修改。
+
+================================================================================
+
+工产函数还有深坑没填完
+回头恶补一下
+抽象工厂模式
+和
+工厂模式
+再来填这个坑
+

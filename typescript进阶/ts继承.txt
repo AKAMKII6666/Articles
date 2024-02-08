@@ -1,0 +1,41 @@
+typescript 的类型是可以继承的
+
+先自定义一个类型
+
+type LEIXING = {name : string};
+
+interface Ileixing extends LEIXING{
+    age : number
+}
+
+/*
+*在这里必须完善两个字段
+*/
+let aaa:Ileixing = {
+    name : "123123",
+    age:1
+}
+
+
+--------------------------------------------------------------------
+一个泛型的示例
+
+function fangfa<T extends {id:number; render(n:number):number}>(arr T[]){
+    arr.map(function(_item){
+        _item.render(_item.id);
+    });
+}
+
+fangfa([
+    {
+        id:1,
+        render:function(n){
+            return n;
+        }
+    }
+])
+
+fangfa<T>  这个泛型T 继承了 {id:number; render(n:number):number}这个自定义类型  然后在接受参数的时候接受一个
+刚刚定义的这个T为元素类型的数组
+
+

@@ -1,0 +1,1770 @@
+https://juejin.cn/book/7115598540721618944/section/7116188153064456205
+
+1.我们为什么需要使用这么复杂的构建工具？原因是，时代变了！
+nodeJs和requireJs是2009年出现的。
+我的话是在2015年才用上。
+
+什么是webpack?
+Webpack是一种用于构建JavaScript应用程序的静态模块打包器，它能够以一种相对一致且
+开放的处理方式，加载不应用中的所有资源文件，并将其合并并处理成浏览器兼容的web资源文件
+
+Webpack忽略了具体资源类型之间的差异，将所有代码/非代码文件都同意看做Module
+也就是模块对象，以相同的加载，解析，依赖管理，优化，合并流程实现打包，并借助
+Loader,Plugin两种开放接口将资源差异的处理逻辑转交由第三方webpack组件来实现
+
+这样的做法有很多优点：
+ - 所有资源都是Module,所以可以用同一套代码实现诸多特性，包括：代码压缩，
+ Hot Module Replacement 缓存等；
+
+ - 打包时，资源与资源之间非常容易实现信息互换，例如和以轻易在HTML里插入Base64格式的图片；
+
+ - 借助Loader,Webpack几乎可以用任意方式处理任意类型的资源，例如和以用Less,stylus,sass等预编译css代码
+
+ 2012年webpack出现了
+
+ =============================================================================
+ =============================================================================
+ =============================================================================
+ 结构化理解Webpack配置项
+Webpack原生提供了上百种配置项，这些配置项最终都会作用于Webpack大宝过程的不同阶段
+因此我们可以从流程角度更框架性结构化的了解
+
+Webpack的大包裹成非常复杂，但是大致可以简化为:
+
+输入
+↓
+模块处理
+↓
+后处理
+↓
+输出
+
+ - 输入：从文件系统读入代码文件；
+ - 模块递归处理：调用Loader转译Module内容，并将结果转换为AST，从中分析出模块的依赖关系，并进一步递归处
+ 理完毕后开始执行后处理，包括模块合并，注入运行时，产物优化等，最终将chunk集合；
+ - 输出:将Chunk写出到外部文件系统。
+
+ 从上述打包流程角度，Webpack配置项大体可分为两类:
+
+ - 流程类：作用于打包流程某个环节或若干个环节，直接音响编译打包效果的配置项;
+ - 工具类：打包主流程之外，提供更多工程化工具的配置项；
+------------------------------------------------------------------------
+ 与打包流程配置相关的配置值有：
+ - 输入输出
+    -- entry:用于定义项目入口文件，webpack会从这些入口文件开始按图索骥(通过依赖创建树)找出所有项目文件
+    -- context:项目执行上下文路径；
+    -- output:配置产物输出路径，名称等；
+ - 模块处理
+    --resolve:用于配置模块路径解析规则，可用于帮助 Webpack 更精确、高效地找到指定模块
+    --module:用于配置块加载规则，例如针对什么类型的资源需要使用什么样的Loader进行处理
+    --externals:用于声明外部资源，webpack会直接忽略这部分的资源，跳过这些资源的打包操作
+ - 后处理
+    --optmization:用于控制如何优化产物包体积，内置Dead code Elimination,Scope Hoisting,代码混淆，代码压缩等功能。
+    --target:用于配置编译产物的目标运行环境，支持web,node,electron等值，不同值会产出不同的最终产物
+    --mode:编译模式短语，支持development,production等值，可以理解为一种声明环境的短语
+
+
+这些配置项与打包流程强相关，建议学习时多关注它们对主流程的影响，例如 entry 决定了项目入口，而 output 则决定
+产物最终往哪里输出；resolve 决定了怎么找到模块，而 module 决定了如何解读模块内容，等等。
+-------------------------------------------------------------------------
+工具类
+提升快发效率的配置功能:
+ - 开发效率类:
+    -- watch:用于配置持续监听文件变化，持续构建
+    -- devtool:用于配置产物Sourcemap的生成规则
+    -- devServer:用于配置与HMR强相关的开发(dev)服务器功能
+ - 性能优化类:
+    -- catche:Webpack5之后，该项用于控制如何缓存编译过程信息与编译结果
+    -- performance:用于配置当产物大小超过阈值时，如何通知开发者
+ - 日志类:
+    -- status:用于精确地控制编译过程的日志内容，在做比较细致的性能调试时非常有用
+    -- infrastructureLogging: 用于控制日志输出方式，例如可以通过该配置将日志输出到磁盘文件
+ - 等等
+
+
+---------------------------------------------------------------------------
+现成的脚手架工具:
+Vue CLI：用于帮助用户快速创建、运行 Vue.js 项目脚手架的命令行工具；
+create-react-app：用于创建 React 项目脚手架的命令行工具；
+@angular/cli：用于创建 angular 项目的命令行工具；
+webpack-cli：Webpack 官方提供的命令行工具，提供了一套交互式生成配置文件的指令集，以及项目编译、开发、迁移等功能；
+Neutrino：用于快速创建、运行现代 JavaScript 应用的工具，同时支持 React、Preact、Vue、Web、Node.js、Library 等场景；
+react-starter-kit：用于创建 React + Relay + GraphQL 应用的脚手架工具，内置 SSR 支持。
+
+
+
+
+ =============================================================================
+ =============================================================================
+ =============================================================================
+ Babel
+ es6版本补充了大量提升Javascript开发效率的新特性，包括class关键字，块级作用域ES Module方案
+ 代理域反射等使得js可以真正的被用来编写大型的应用用程序。
+ 但是这些特性在浏览器端或者node端都存在各种兼容性问题，我们需要使用Babel开进行转译。
+
+
+
+Babel 是一个开源 JavaScript 转编译器，它能将高版本 —— 如 ES6 代码等价转译为向后兼容，
+能直接在旧版 JavaScript 引擎运行的低版本代码，例如：
+
+// 使用 Babel 转译前
+arr.map(item => item + 1)
+
+// 转译后
+arr.map(function (item){
+  return item + 1;
+})
+
+
+在线的babel:
+https://babeljs.io/repl 
+
+
+
+webpack的话，只需要使用babel-loader即可接入babel转译功能
+
+
+
+module.exports = {
+  /* ... */
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: ['babel-loader'],
+      },
+    ],
+  },
+};
+
+
+ - module 属性声明模块处理规则
+ - rules 配置子属性用于过滤什么样的文件，然后被什么样的loader处理
+
+test: /\.js$/：用于声明该规则的过滤条件，只有路径名命中该正则的文件才会应用这条规则，示例中的 /\.js$/ 表示对所有 .js 后缀的文件生效
+use：用于声明这条规则的 Loader 处理器序列，所有命中该规则的文件都会被传入 Loader 序列做转译处理
+
+Babel可以使用.babelrc文件或者rule.option属性配置Babel功能逻辑，例如：
+
+module.exports = {
+  /* ... */
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: [
+          {
+            loader: 'babel-loader',
+            options: {
+              presets: ['@babel/preset-env'],
+            },
+          },
+        ],
+      },
+    ],
+  },
+};
+
+preset是什么？
+Preset是babel预设集，可以使用预设集将一系列配置打包成一个预设环境，这样一来可以简化配置
+社区里已经提供了大量的预设集，例如：
+ babel-preset-react:包含了react的常用插件的规则集合，支持preset-flow,syntax-jsx,transform-resct-jsx等。
+ @babel/preset-typescript:用于转译Typescript代码的规则集
+ @babel/preset-flow:用于转译Flow代码的规则集.
+
+ babel 还有大量需要学习的地方，这是babel的官方文档:
+ https://babeljs.io/docs/en/ 
+
+
+使用Typescript
+---------------------------------------------------------------------------------
+为了解决js的一些痛点一些有问题的设计，社区推出了一系列js的超集:typescript,coffescript,flow
+
+其中,typescript借鉴了C#语言，在js上提供了一系列类型约束:
+
+
+webpack接入ts的方法:
+可以使用 ts-loader、awesome-ts-loader、 babel-loader
+但是一般使用ts-loader就好了
+
+1.安装依赖
+npm i -D typescript ts-loader
+
+2.配置 Webpack
+
+const path = require('path');
+
+module.exports = {
+  /* xxx */
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        use: 'ts-loader'
+      },
+    ],
+  },
+  resolve: {
+    //这里的意思是可以改善编码效率，当引用特定类型文件时只需要写文件名就好了
+    //不需要写后缀
+    extensions: ['.ts', '.js'],
+  }
+};
+
+如果项目中已经用了babel就不要用tsloader了，可以使用@babel/preset-typescript来配置ts
+
+1.安装依赖
+npm i -D @babel/preset-typescript
+1.配置 Webpack
+// 预先安装 @babel/preset-env
+// npm i -D @babel/preset-env
+module.exports = {
+  /* ... */
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: [
+          {
+            loader: 'babel-loader',
+            options: {
+              presets: ['@babel/preset-typescript'],
+            },
+          },
+        ],
+      },
+    ],
+  },
+};
+
+@babel/preset-typescript 只是哟景来做代码检查
+并未做ts-loader的类型检查
+
+ESLint
+--------------------------------------------------------------------
+javascript被设计成一种高灵活度弱类型脚本语言，但是一旦使用了typescript
+就需要用到一些手段帮助你在开发过程中纠错。
+
+ESLint是一种扩展性极佳的js代码风格检查工具，它可以将一些违反庚哥编写的代码转换成符合风格的代码，
+例如下面的示例:
+
+
+
+
+
+源码
+const foo ='foo';
+
+let  bar='bar';
+console.log(foo,bar)
+
+
+ESLint 修复后
+const foo = 'foo'
+
+const bar = 'bar'
+
+
+
+console.log(foo, bar)
+ESLint 配置：
+module.exports = {
+
+    "extends": "standard"
+
+}
+
+
+除了常规的代码检查之外，还可以适当地使用EsLint插件，配置集实现更丰富的检查，格式化功能。
+这里推荐几种使用效率较高第三方扩展，建议读者跟进学习。
+
+ - eslint-config-airbnb：Airbnb 提供的代码风格规则集，算得上 ESLint 生态第一个成名的规则集合
+ - eslint-config-standard：Standard.js 代码风格规则集，史上最便捷的统一代码风格的方式
+ - eslint-plugin-vue：实现对 Vue SFC 文件的代码风格检查
+ - eslint-plugin-react：实现对 React 代码风格检查
+ - @typescript-eslint/eslint-plugin：实现对 TypeScript 代码风格检查
+ - eslint-plugin-sonarjs：基于 Sonar 的代码质量检查工具，提供圈复杂度、代码重复率等检测功能
+
+
+ 综合示例
+ ----------------------------------------------------------------------------
+ 最后我们再串联以上三种工具，构建一套完整的javascript应用开发环境
+
+
+ 总结
+ ----------------------------------------------------------------------------
+  - Babel 提供语言转译能力
+  - Typescript 提供类型检查能力
+  - ESLint 提供风格检查能力，能在多人协作的时候保持代码的一致性
+
+
+ =============================================================================
+ =============================================================================
+ =============================================================================
+ webpack 的 css 预处理
+  - css-loader ：赋予js文件引用css文件的能力
+  - style-loader : 使得css文件可以跟随js文件在使用过程中动态以link的方式被加入页面
+  - mini-css-extract-plugin：该插件会将 CSS 代码抽离到单独的 .css 文件，并将文件通过 <link> 标签方式插
+  入到页面中。
+
+
+css-loader 提供了很多处理 CSS 代码的基础能力，包括 CSS 到 JS 转译、依赖解析、Sourcemap、css-in-module 等
+，基于这些能力，Webpack 才能像处理 JS 模块一样处理 CSS 模块代码。
+
+生产环境中通常会用 mini-css-extract-plugin 插件替代 style-loader,将样式代码抽离成单独的 CSS 文件!
+ - mini-css-extract-plugin 库同时提供 Loader、Plugin 组件，需要同时使用
+ - mini-css-extract-plugin 不能与 style-loader 混用，否则报错，所以上述示例中第 9 行需要判断 process.env.NODE_ENV 
+ 环境变量决定使用那个 Loader
+ - mini-css-extract-plugin 需要与 html-webpack-plugin 同时使用，才能将产物路径以 link 标签方式插入到 html 中
+
+- autoprefixer：基于 Can I Use 网站上的数据，自动添加浏览器前缀
+- postcss-preset-env：一款将最新 CSS 语言特性转译为兼容性更佳的低版本代码的插件
+- postcss-less：兼容 Less 语法的 PostCSS 插件，类似的还有：postcss-sass、poststylus
+- stylelint：一个现代 CSS 代码风格检查器，能够帮助识别样式代码中的异常或风格问题
+
+
+------------------------------------------------------------------------------
+总结
+ - Webpack 不能理解 CSS 代码，所以需要使用 css-loader、style-loader、mini-css-extract-plugin 三种组件处理样式资源；
+ - Less/Sass/Stylus/PostCSS 等工具可弥补原生 CSS 语言层面的诸多功能缺失，例如数值运算、嵌套、代码复用等。
+
+
+ =============================================================================
+ =============================================================================
+ =============================================================================
+ webpack打包的核心流程
+1.初始化阶段
+    - 初始化参数 ： 从配置文件、 配置对象、Shell 参数中读取，与默认配置结合得出最终的参数；
+    - 创建编译器对象 : 用上一步得到的参数创建 Compiler 对象；
+    - 初始化编译环境 : 包括注入内置插件、注册各种模块工厂、初始化 RuleSet 集合、加载配置的插件等；
+    - 开始编译 : 执行 compiler 对象的 run 方法，创建 Compilation 对象；
+    - 确定入口 : 根据配置中的 entry 找出所有的入口文件，调用 compilation.addEntry 将入口文件转换为 dependence 对象。
+2.构建阶段
+    - 编译模块 : 从 entry 文件开始，调用 loader 将模块转译为标准 JS 内容，调用 JS 解析器将内容转换为 AST 对象，从中找出该模块依赖的模块，再 递归 处理这些依赖模块，直到所有入口依赖的文件都经过了本步骤的处理；
+    - 完成模块编译 : 上一步递归处理所有能触达到的模块后，得到了每个模块被翻译后的内容以及它们之间的依赖关系图。
+3.封装阶段
+    - 合并 ： 根据入口和模块之间的依赖关系，组装成一个个包含多个模块的 Chunk；
+    - 优化 : 对上述 Chunk 施加一系列优化操作，包括：tree-shaking、terser、scope-hoisting、压缩、Code Split 等；
+    - 写入文件系统 : 在确定好输出内容后，根据配置确定输出的路径和文件名，把文件内容写入到文件系统。
+
+在这个过程中有不少可能造成性能问题的地方：
+
+构建阶段：
+ - 首先需要将文件的相对引用路径转换为绝对路径，这个过程可能涉及多次 IO 操作，执行效率取决于 文件层次深度；
+ - 找到具体文件后，需要读入文件内容并调用 loader-runner 遍历 Loader 数组完成内容转译，这个过程需要执行较密集的 CPU 操作，执行效率取决于 Loader 的数量与复杂度；
+ - 需要将模块内容解析为 AST 结构，并遍历 AST 找出模块的依赖资源，这个过程同样需要较密集的 CPU 操作，执行效率取决于 代码复杂度；
+ - 递归处理依赖资源，执行效率取决于 模块数量。
+封装阶段：
+ - 根据 splitChunks 配置、entry 配置、动态模块引用语句等，确定模块与 Chunk 的映射关系，其中 splitChunks 相关的分包算法非常复杂，涉及大量 CPU 计算；
+ - 根据 optimization 配置执行一系列产物优化操作，特别是 Terser 插件需要执行大量 AST 相关的运算，执行效率取决于 产物代码量；
+等等。
+可以看出，Webpack 需要执行非常密集的 IO 与 CPU 操作，计算成本高，再加上 Webpack 以及大多数组件都使用 JavaScript 编写，无法充分利用多核 CPU 能力，所以在中大型项性能通常表现较差。
+
+不过，这些性能问题是可以被优化的！
+
+ =============================================================================
+ =============================================================================
+ =============================================================================
+性能分析
+
+webPack构建过程相当复杂，在优化webpack的构建速度的手可以借助一些工具进行分析
+但是分析的话需要webpack输出一些可供分析的日志才行，所以需要对webpack进行配置：
+// webpack.config.js
+module.exports = {
+  // ...
+  profile: true
+}
+
+配置了profile为true之后，然后运行编译命令
+
+webpack --json > status.json --config ./webpack.config.js 
+
+然后就会有一个webpack的构建日志文件(status.json)被生成在了项目的根目录下
+
+-------------------------------------------------------------------------------
+status.json 收集了 Webpack 运行过程中许多值得关注的信息，包括：
+ - modules：本次打包处理的所有模块列表，内容包含模块的大小、所属 chunk、构建原因、依赖模块等，特别是 modules.profile 属性，包含了构建该模块时，解析路径、编译、打包、子模块打包等各个环节所花费的时间，非常有用；
+ - chunks：构建过程生成的 chunks 列表，数组内容包含 chunk 名称、大小、包含了哪些模块等；
+ - assets：编译后最终输出的产物列表、文件路径、文件大小等；
+ - entrypoints：entry 列表，包括动态引入所生产的 entry 项也会包含在这里面；
+ - children：子 Compiler 对象的性能数据，例如 extract-css-chunk-plugin 插件内部就会调用 compilation.createChildCompiler 函数创建出子 Compiler 来做 CSS 抽取的工作。
+
+
+然后使用一些分析工具，可以可视化地分析Webpack的打包构建过程，了解构建的性能问题所在
+
+ - Webpack Analysis ：Webpack 官方提供的，功能比较全面的 stats 可视化工具；
+ - Statoscope：主要侧重于模块与模块、模块与 chunk、chunk 与 chunk 等，实体之间的关系分析；
+ - Webpack Visualizer：一个简单的模块体积分析工具，真的很简单！
+ - Webpack Bundle Analyzer：应该是使用率最高的性能分析工具之一，主要实现以 Tree Map 方式展示各个模块的体积占比；
+ - Webpack Dashboard：能够在编译过程实时展示编译进度、模块分布、产物信息等；
+ - Unused Webpack Plugin：能够根据 stats 数据反向查找项目中未被使用的文件。
+
+
+
+--------------------------------------------------------------------------------
+Webpack Analysis
+https://webpack.github.io/analyse/
+
+--------------------------------------------------------------------------------
+Webpack Bundle Analyzer
+https://www.npmjs.com/package/webpack-bundle-analyzer
+需要配置webpack使用:
+npm i -D webpack-bundle-analyzer
+const BundleAnalyzerPlugin = require("webpack-bundle-analyzer")
+  .BundleAnalyzerPlugin;
+
+module.exports = {
+  ...
+  plugins: [new BundleAnalyzerPlugin()],
+};
+
+
+ =============================================================================
+ =============================================================================
+ =============================================================================
+ webpack5中的持久化缓存
+ 持久化缓存是webpack5中最令人振奋的特性之一了，它能够将首次构建的过程和结果数据持久化保存
+ 到本地文件系统，在下次构建的时候跳过解析，链接，编译等等一系列非常消耗性能的操作，直接复用
+ 上次的Module/ModuleGraph/Chunk对象数据，迅速构建出最终产物.
+
+仅仅需要在webpack5中配置:
+module.exports = {
+    //...
+    cache: {
+        type: 'filesystem'
+    },
+    //...
+};
+就可以开启webpack的持久化缓存
+
+此外，cache还提供了其它的配置项目用于调节持久化缓存的功能.
+
+ - cache.type：缓存类型，支持 'memory' | 'filesystem'，需要设置为 filesystem 才能开启持久缓存；
+ - cache.cacheDirectory：缓存文件路径，默认为 node_modules/.cache/webpack ；
+ - cache.buildDependencies：额外的依赖文件，当这些文件内容发生变化时，缓存会完全失效而执行完整的编译构建，通常可设置为各种配置文件，如：
+module.exports = {
+  cache: {
+    type: 'filesystem',
+    buildDependencies: {
+      config: [
+        path.join(__dirname, 'webpack.dll_config.js'),
+        path.join(__dirname, '.babelrc')
+      ],
+    },
+  },
+};
+ - cache.managedPaths：受控目录，Webpack 构建时会跳过新旧代码哈希值与时间戳的对比，直接使用缓存副本，默认值为 ['./node_modules']；
+ - cache.profile：是否输出缓存处理过程的详细日志，默认为 false；
+ - cache.maxAge：缓存失效时间，默认值为 5184000000 。
+
+ ----------------------------------------------------------------------------
+ 缓存原理
+ 
+在说缓存原理之前，需要看看webpack的打包流程:
+
+初始化 → 构建阶段
+            ↓
+        读入文件
+            ↓
+        执行loader链
+            ↓
+        解析AST(语法树)
+            ↓
+        解析依赖            →        生成阶段
+                                        ↓
+                                    代码转译
+                                        ↓
+                                    收集运行时依赖
+                                        ↓
+                                    生成Chunk
+                                        ↓
+                                    产物优化            →           写出硬盘
+
+
+简单来说就是 
+初始化  →  构建阶段  →  生成阶段  →  写出硬盘
+
+ - 初始化主要是根据配置信息设置内置的各类插件
+ - 构建阶段,从entry模块开始，执行：
+    -- 读入文件内容；
+    -- 调用loader转译文件内容；
+    -- 调用acorn生成AST结构；
+    -- 分析AST,去顶模块依赖表;
+    -- 遍历模块依赖列表，对每一个依赖模块重新执行上述流程，直到生成完整的模块依赖图 -- ModuleGraph对象
+- 生成阶段
+    -- 遍历ModuleGraph对每一个模块执行:
+        ---代码转译，例如将import转换为require,把export转换成define
+        ---分析运行时依赖
+    --合并模块代码与运行时代码，生成chunk;
+    --执行产物优化操作，如Tree-shaking;
+    --将最终结果写出到硬盘
+
+这个过程里有很多都是cpu密集型的操作例如:
+构建阶段：
+loader加载文件
+tsloader还是生成语法树
+分析模块依赖的时候还要从每个文件的语法树里查找引用关系
+
+生成阶段：
+也存在大量的语法树操作，例如需要通过语法树将import转换成require吧export转换成define
+合并模块代码需要从依赖关系树里查找非异步引用并把他们进行合并操作。
+Tree-shaking也是一个非常费性能的操作，它的作用是遍历语法树，找到没有被用过的语句并去除。
+
+
+其实webpack这样的缓存机制叫缓存代理
+它内部实现了一个缓存代理，在构建阶段会通过缓存代理检查本地的缓存
+
+
+初始化 → 构建阶段
+            ↓
+        读入文件
+            ↓
+        执行loader链
+            ↓
+        解析AST(语法树)
+            ↓
+        解析依赖            →        生成阶段
+                                        ↓
+                                    代码转译
+                                        ↓
+                                    收集运行时依赖
+                                        ↓
+                                    生成Chunk
+                                        ↓
+                                    产物优化            →           写出硬盘
+
+
+webpack主要讲Module,Chunk,ModuleGraph三类对象的状态进行序列化保存到硬盘里；
+下次初始化的时候就会从硬盘里拿出来并在相关的位置核实缓存信息，来决定是否直接使用缓存
+还是再构建一遍
+
+----------------------------------------------------------------
+一些组件本身的缓存功能
+Babel：
+module.exports = {
+    // ...
+    module: {
+        rules: [{
+            test: /\.m?js$/,
+            loader: 'babel-loader',
+            options: {
+                cacheDirectory: true,
+            },
+        }]
+    },
+    // ...
+};
+----------------------------------------------------------------
+ESLint 和  Stylelint 
+module.exports = {
+  plugins: [
+    new ESLintPlugin({ cache: true }),
+    new StylelintPlugin({ files: '**/*.css', cache: true }),
+  ],
+};
+
+
+
+
+ =============================================================================
+ =============================================================================
+ =============================================================================
+webpack多线程构建
+受限于Nodejs的单线程架构，原生Webpack对所有的资源文件做的所有解析，转译，合并操作
+本质上都是在一个县城上串行执行的，cpu利用极低，但是如果可以将其设置为多核cpu运行的
+话，可以大大提升打包效率
+webpack社区提供了这些组件方案对打包支持多线程处理:
+ - HappyPack：多进程方式运行资源加载(Loader)逻辑；
+ - Thread-loader：Webpack 官方出品，同样以多进程方式运行资源加载逻辑；
+ - Parallel-Webpack：多进程方式运行多个 Webpack 构建实例；
+ - TerserWebpackPlugin：支持多进程方式执行代码压缩、uglify 功能。
+
+
+------------------------------------------------------------------------
+使用HappyPack
+Happypack能够将耗时的loader（文件加载）操作拆散到多个子进程中并发执行，子进程执行完
+之后将结果再发回Webpack的主进程，从而实现构建性能。不过HappyPack的用法稍微有点难以理解
+需要同时:
+ - 使用HappyPack/loader代替原本的Loader序列；
+ - 使用HappyPack插件注入代理执行Loader序列的逻辑;
+
+基本用法:
+
+1.安装依赖：
+npm i happypack -D
+
+2.将原有 loader 配置替换为 happypack/loader，如：
+
+
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        /*
+            将一些原来需要babel处理的文件，转交由happyPack代理进行
+        */
+        use: "happypack/loader",
+        // 原始配置如：
+        // use: [
+        //  {
+        //      loader: 'babel-loader',
+        //      options: {
+        //          presets: ['@babel/preset-env']
+        //      }
+        //  },
+        //  'eslint-loader'
+        // ]
+      },
+    ],
+  },
+};
+
+创建 happypack 插件实例，并将原有 loader 配置迁移到插件中，完整配置：
+
+
+const HappyPack = require("happypack");
+
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: "happypack/loader",
+        // 原始配置如：
+        // use: [
+        //  {
+        //      loader: 'babel-loader',
+        //      options: {
+        //          presets: ['@babel/preset-env']
+        //      }
+        //  },
+        //  'eslint-loader'
+        // ]
+      },
+    ],
+  },
+  plugins: [
+    new HappyPack({
+      // 将原本定义在 `module.rules.use` 中的 Loader 配置迁移到 HappyPack 实例中
+      loaders: [
+        {
+          loader: "babel-loader",
+          option: {
+            presets: ["@babel/preset-env"],
+          },
+        },
+        "eslint-loader",
+      ],
+    }),
+  ],
+};
+
+
+通过配置多个不同的代理可以使不同的loader多线程化:
+
+
+const HappyPack = require('happypack');
+
+module.exports = {
+  // ...
+  module: {
+    rules: [{
+        test: /\.js?$/,
+        // 使用 `id` 参数标识该 Loader 对应的 HappyPack 插件示例
+        use: 'happypack/loader?id=js'
+      },
+      {
+        test: /\.less$/,
+        use: 'happypack/loader?id=styles'
+      },
+    ]
+  },
+  plugins: [
+    new HappyPack({
+      // 注意这里要明确提供 id 属性
+      id: 'js',
+      loaders: ['babel-loader', 'eslint-loader']
+    }),
+    new HappyPack({
+      id: 'styles',
+      loaders: ['style-loader', 'css-loader', 'less-loader']
+    })
+  ]
+};
+
+但是这样做了以后，HappyPack会消耗大量的性能在创建和销毁线程上，这在某些情况下反而是
+负优化，所以为了避免这种情况，使happypack运行效率增强，happyPack还有个进程池的功能:
+const happyThreadPool = HappyPack.ThreadPool({
+  // 设置进程池大小
+  size: os.cpus().length - 1
+});
+这里定义一个进程池，然后将这个池子统一分配给下面的happyPack实例:
+module.exports = {
+  // ...
+  plugins: [
+    new HappyPack({
+      id: 'js',
+      // 设置共享进程池
+      threadPool: happyThreadPool,
+      loaders: ['babel-loader', 'eslint-loader']
+    }),
+    new HappyPack({
+      id: 'styles',
+      threadPool: happyThreadPool,
+      loaders: ['style-loader', 'css-loader', 'less-loader']
+    })
+  ]
+};
+
+------------------------------------------------------------------------------
+HappyPack的缺点:
+ - 作者自己都说不会再维护,随着webpack的更新，它肯定会出现各种问题。
+ - HappyPack的底层是作者仿照webpack的加载器，重新实现的一套逻辑，会导致一些意想不到的问题
+ - HappyPack主要用于文件加载的阶段，和后面的流程关系不大，收益有限。
+
+
+
+------------------------------------------------------------------------
+使用Thead-loader
+thead-loader与HappyPack功能类似，都是以多进程方式加载文件的webpack组件，两者的主要区别
+
+ - Thread-loader 由 Webpack 官方提供，目前还处于持续迭代维护状态，理论上更可靠；
+ - Thread-loader 只提供了一个 Loader 组件，用法简单很多；
+ - HappyPack 启动后会创建一套 Mock 上下文环境 —— 包含 emitFile 等接口，并传递给 Loader，
+ 因此对大多数 Loader 来说，运行在 HappyPack 与运行在 Webpack 原生环境相比没有太大差异；
+ 但 Thread-loader 并不具备这一特性，所以要求 Loader 内不能调用特定上下文接口，兼容性较差。
+
+看看它的用法:
+npm i thread-loader -D
+
+将thread-loader放在use链的首位:
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: ["thread-loader", "babel-loader", "eslint-loader"],
+      },
+    ],
+  },
+};
+
+此外，Thread-loader 还提供了一系列用于控制并发逻辑的配置项，包括：
+
+ - workers：子进程总数，默认值为 require('os').cpus() - 1；
+ - workerParallelJobs：单个进程中并发执行的任务数；
+ - poolTimeout：子进程如果一直保持空闲状态，超过这个时间后会被关闭；
+ - poolRespawn：是否允许在子进程关闭后重新创建新的子进程，一般设置为 false 即可；
+ - workerNodeArgs：用于设置启动子进程时，额外附加的参数。
+
+不过，Thread-loader 也同样面临着频繁的子进程创建、销毁所带来的性能问题，为此，Thread-loader 提供了 warmup 
+接口用于前置创建若干工作子进程，降低构建时延，用法：
+const threadLoader = require("thread-loader");
+
+threadLoader.warmup(
+  {
+    // 可传入上述 thread-loader 参数
+    workers: 2,
+    workerParallelJobs: 50,
+  },
+  [
+    // 子进程中需要预加载的 node 模块
+    "babel-loader",
+    "babel-preset-es2015",
+    "sass-loader",
+  ]
+);
+
+与 HappyPack 相比，Thread-loader 有两个突出的优点，一是产自 Webpack 官方团队，后续有长期维护计划，
+稳定性有保障；二是用法更简单。但它不可避免的也存在一些问题：
+
+ - 在 Thread-loader 中运行的 Loader 不能调用 emitAsset 等接口，这会导致 style-loader 这一类加载器无法正常工作，解决方案是将这类组件放置在 thread-loader 之前，如 ['style-loader', 'thread-loader', 'css-loader']；
+ - Loader 中不能获取 compilation、compiler 等实例对象，也无法获取 Webpack 配置。
+
+这会导致一些 Loader 无法与 Thread-loader 共同使用，大家需要仔细加以甄别、测试。
+
+----------------------------------------------------------------------------
+使用 Parallel-Webpack
+Thread-loader,HappyPack这类组件所提供的并行处理能留仅仅用于文件的加载过程。
+Parallel-Webpack则是针对需要一个项目输出多种不同环境代码时准备的多线程打包工具
+
+虽然，parallel-webpack 相对于 Thread-loader、HappyPack 有更高的并行度，但进程实
+例之间并没有做任何形式的通讯，这可能导致相同的工作在不同进程 —— 或者说不同 CPU 核上被重复执行。
+
+例如需要对同一份代码同时打包出压缩和非压缩版本时，在 parallel-webpack 方案下，前置的
+资源加载、依赖解析、AST 分析等操作会被重复执行，仅仅最终阶段生成代码时有所差异。
+
+这种技术实现，对单 entry 的项目没有任何收益，只会徒增进程创建成本；但特别适合 MPA 等多 entry 
+场景，或者需要同时编译出 esm、umd、amd 等多种产物形态的类库场景。
+
+
+-----------------------------------------------------------------------------
+并行压缩
+Webpack5自带Terser压缩，通过一些参数可以调整Terser压缩的性能:
+const TerserPlugin = require("terser-webpack-plugin");
+
+module.exports = {
+    optimization: {
+        minimize: true,
+        minimizer: [new TerserPlugin({
+            parallel: 2 // number | boolean
+        })],
+    },
+};
+
+
+------------------------------------------------------------------------------
+总结
+ - 对于 Webpack4 之前的项目，可以使用 HappyPack 实现并行文件加载；
+ - Webpack4 之后则建议使用 Thread-loader；
+ - 多实例并行构建场景建议使用 Parallel-Webpack 实现并行；
+ - 生产环境下还可配合 terser-webpack-plugin 的并行压缩功能，提升整体效率。
+
+理论上，并行确实能够提升系统运行效率，但 Node 单线程架构下，所谓的并行计算都只能依托与派生子进程执行，
+而创建进程这个动作本身就有不小的消耗 —— 大约 600ms，对于小型项目，构建成本可能可能很低，
+引入多进程技术反而导致整体成本增加，因此建议大家按实际需求斟酌使用上述多进程方案。
+
+
+
+ =============================================================================
+ =============================================================================
+ =============================================================================
+ 有哪些值得推荐的优化方案:
+首先要确保Webpack是新版本
+
+ 1.lazyCompilation
+Webpack 5.17.0 之后引入实验特性 lazyCompilation，用于实现 entry 或异步引用模块的按需编译，
+这是一个非常实用的新特性！
+
+配置方法:
+// webpack.config.js
+module.exports = {
+  // ...
+  experiments: {
+    lazyCompilation: true,
+  },
+};
+
+启用以后异步加载的模块都不会立刻被编译，直到访问它们时才会开启编译。
+
+lazyCompilation 支持如下参数：
+
+ - backend： 设置后端服务信息，一般保持默认值即可；
+ - entries：设置是否对 entry 启动按需编译特性；
+ - imports：设置是否对异步模块启动按需编译特性；
+ - test：支持正则表达式，用于声明对那些异步模块启动按需编译特性。
+
+lazyCompilation 还处于试验阶段，建议dev模式开启就好了
+
+-------------------------------------------------------------------------------
+约束loader的文件执行范围也能加速webpack的运行效率
+
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        /*
+            排除某些目录
+        */
+        exclude: /node_modules/,
+        use: ["babel-loader", "eslint-loader"],
+      },
+    ],
+  },
+};
+
+-------------------------------------------------------------------------------
+使用 noParse 跳过文件编译
+有不少 NPM 库已经提前做好打包处理,所以一些文件或者库可以制定不需要编译:
+
+ - Vue2 的 node_modules/vue/dist/vue.runtime.esm.js 文件；
+ - React 的 node_modules/react/umd/react.production.min.js 文件；
+ - Lodash 的 node_modules/lodash/lodash.js 文件。
+
+// webpack.config.js
+module.exports = {
+  //...
+  module: {
+    noParse: /lodash|react/,
+  },
+};
+
+使用 noParse 时需要注意：
+
+ - 由于跳过了前置的 AST 分析动作，构建过程无法发现文件中可能存在的语法错误，需要到运行（或 Terser 做压缩）
+ 时才能发现问题，所以必须确保 noParse 的文件内容正确性；
+ - 由于跳过了依赖分析的过程，所以文件中，建议不要包含 import/export/require/define 等模块导入导出语句 —— 
+ 换句话说，noParse 文件不能存在对其它文件的依赖，除非运行环境支持这种模块化方案；
+ - 由于跳过了内容分析过程，Webpack 无法标记该文件的导出值，也就无法实现 Tree-shaking。
+
+综上，建议在使用 noParse 配置 NPM 库前，先检查 NPM 库默认导出的资源满足要求，例如 React@18 
+默认定义的导出文件是 index.js：
+
+// react package.json
+{
+  "name": "react",
+  // ...
+  "main": "index.js"
+}
+
+但 node_module/react/index.js 文件包含了模块导入语句 require：
+
+// node_module/react/index.js
+'use strict';
+
+if (process.env.NODE_ENV === 'production') {
+  module.exports = require('./cjs/react.production.min.js');
+} else {
+  module.exports = require('./cjs/react.development.js');
+}
+
+此时，真正有效的代码被包含在 react.development.js（或 react.production.min.js）中，但 Webpack 只会打包
+这段 index.js 内容，也就造成了产物中实际上并没有真正包含 React。针对这个问题，我们可以先找到适用的代码文件
+，然后用 resolve.alias 配置项重定向到该文件：
+
+// webpack.config.js
+module.exports = {
+  // ...
+  module: {
+    noParse: /react|lodash/,
+  },
+  resolve: {
+    alias: {
+      react: path.join(
+        __dirname,
+        process.env.NODE_ENV === "production"
+          ? "./node_modules/react/cjs/react.production.min.js"
+          : "./node_modules/react/cjs/react.development.js"
+      ),
+    },
+  },
+};
+
+这样的话就可以根据环境直接调用相应已经打包好的文件而不是直接让webpack再打包一遍这些外部模块
+使用 externals 也能将部分依赖放到构建体系之外，实现与 noParse 类似的效果，详情可查阅官网。
+
+------------------------------------------------------------------------------
+开发模式禁用产物优化
+
+module.exports = {
+  // ...
+  mode: "development",
+  optimization: {
+    //这个是指检测模块重复打包的问题
+    //在开发模式下可以不用关心模块重复打包的问题
+    removeAvailableModules: false,
+    //检测是否有空分支，这里为true的话，空分支将被移除
+    //但是开发模式下可以不用移除空分支,少了这部分操作，wp的运行效率会变快
+    removeEmptyChunks: false,
+    //保持默认值或 false，关闭代码分包；
+    splitChunks: false,
+    //保持默认值或 false，关闭代码压缩；
+    minimize: false,
+    //保持默认值或 false，关闭模块合并；
+    concatenateModules: false,
+    //保持默认值或 false，关闭 Tree-shaking 功能；
+    usedExports: false,
+  },
+};
+
+-----------------------------------------------------------------------------
+最小化 watch 监控范围
+
+在 watch 模式下（通过 npx webpack --watch 命令启动），Webpack 会持续监听项目目录中所有代码文件，
+发生变化时执行 rebuild 命令。
+
+不过，通常情况下前端项目中部分资源并不会频繁更新，例如 node_modules ，此时可以设置 watchOptions.ignored 
+属性忽略这些文件，例如：
+
+// webpack.config.js
+module.exports = {
+  //...
+  watchOptions: {
+    ignored: /node_modules/
+  },
+};
+
+ =============================================================================
+ =============================================================================
+ =============================================================================
+ 用SplitChunk优化构建性能
+
+ webpack默认会将很多模块都打包在一起，例如NodeModules这个文件夹下的模块
+ 优点是可以减少Http请求，缺点也很明显
+  - 初始页面的代码包太大了，影响首页加载效率。
+  - 无法有效应用浏览器缓存，也就是无法进行增量更新，每次更新都是全量更新。
+ 
+ 为此，Webpack 提供了 SplitChunksPlugin 插件
+
+ 但是在使用SplitChunksPlugin之前，我们需要深入了解，到底什么是Chunk
+
+
+-------------------------------------------------------------------------
+深入理解 Chunk
+chunk是webpack内部一个非常重要的底层设计，用于组织，管理优化最终产物，在构建流程进入到
+生成阶段之后：
+ - Webpack首先根据entry配置创建若干Chunk对象；
+ - 遍历构建(Make)阶段找到的所有Module对象，同一Entry下的模块被分配到Entry对应的Chunk中
+ - 分配完毕之后，根据SplitChunksPlugin的启发式算法进一步对这些Chunk执行裁剪，拆分，合并，
+ 代码调优，最终调整成运行性能更优的形态。
+  - 最后，这些Chunk将一个个输出成最终的产物Asset文件，编译工作到此结束.
+
+可以看出，Chunk 在构建流程中起着承上启下的关键作用 —— 一方面作为 Module 容器，根据一系列默认 
+分包策略 决定哪些模块应该合并在一起打包；另一方面根据 splitChunks 设定的 策略 优化分包，决定
+最终输出多少产物文件。
+
+我的理解：
+Chunk就是最终打包好的文件，一般情况下，单页应用只有一个chunk,但是如果单页应用中使用了异步模块加载
+的组件，那么这些异步的组件将会被单独地打包进一个chunk,在被访问到这些模块的时候，就会单独拉取这些chunk
+
+一般来说，异步模块的资源会被单独打包成一个Chunk,然后主干的资源也会单独打包成Chunk
+那么就会引发一个问题，如果异步的资源和主干的资源使用了同一套公共资源，那么这套公共的
+资源将会同时打包进这两个chunk中，这样一来，不仅没有起到优化效果，反而进行了负优化.
+
+------------------------------------------------------------------------
+SplitChunksPlugin 简介
+SplitChunksPlugin 的用法比较抽象，算得上 Webpack 的一个难点，主要能力有：
+ - SplitChunksPlugin 支持根据Module路径，Module被引用次数，Chunk大小,Chunk请求数等决定是否对Chunk
+ 做进一步拆解，这些决策都可以通过
+    -- optimization.splitChunks 相应配置项调整定制，基于这些能力我们可以实现：
+        --- 单独打包某些特定路径的内容，例如 node_modules 打包为 vendors；
+        --- 单独打包使用频率较高的文件；
+    -- SplitChunksPlugin还提供了optimization.splitChunks.cacheGroup 概念,用于对不同特点的资源做出
+    分组处理，并对这些分组设置更优针对想的分包规则；
+    -- SplitChunksPlugin还内置了default与defaultVendors两个cacheGroup,提供一些开箱即用的分包特性:
+        --- node_modules资源会命中defaultVendors规则，并被单独打包；
+        --- 只有包超过20kb的Chunk才会被单独打包；
+        --- 加载Async Chunk所需请求不得超过30个；
+        --- 加载Initial Chunk 所需请求数不得超过30个；
+
+【这里所说的请求数不能等价对标到 http 资源请求数，下面会细讲。】
+
+直接修改 optimization.splitChunks 配置项即可实现自定义的分包策略：
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      // ...
+    },
+  },
+}
+
+-----------------------------------------------------------------------
+设置分包范围:
+首先，SplitChunksPlugin默认情况下，只对异步模块生效.
+我们可以通过splitchunks.chunks调整作用范围:
+ - 字符串 'all' ：对 Initial Chunk 与 Async Chunk 都生效，建议优先使用该值；
+ - 字符串 'initial' ：只对 Initial Chunk 生效；
+ - 字符串 'async' ：只对 Async Chunk 生效；
+ - 函数 (chunk) => boolean ：该函数返回 true 时生效；
+
+例如:
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      chunks: 'all',
+    },
+  },
+}
+
+
+设置为 all 效果最佳，此时 Initial Chunk、Async Chunk 都会被 SplitChunksPlugin 插件优化。
+
+
+------------------------------------------------------------------------
+设置频率分包
+
+设置一个模块被调用超过两次就分包包处理:
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      // 设定引用次数超过 2 的模块才进行分包
+      minChunks: 2
+    },
+  },
+}
+
+注意，这里“被 Chunk 引用次数”并不直接等价于被 import 的次数，而是取决于上游调用者是否被视作 
+Initial Chunk 或 Async Chunk 处理.
+
+也就是被不同的Chunk引用的次数，无论是异步chunk还是initialChunk
+
+但是也不一定，因为被分包的话还有别的条件:
+------------------------------------------------------------------------
+限制分包数量
+在上面那个配置minChunks的基础上，为了防止被分出来的文件太多，导致Http网络请求剧增,反而进行了负
+优化,配合maxInitialRequest/maxAsyncRequest这两个参数能达到最好的效果。
+ - maxInitialRequest：用于设置 Initial Chunk 最大并行请求数；
+ - maxAsyncRequests：用于设置 Async Chunk 最大并行请求数。
+
+
+
+并行请求数关键逻辑总结如下：
+
+ - Initial Chunk 本身算一个请求；
+ - Async Chunk 不算并行请求；
+ - 通过 runtimeChunk 拆分出的 runtime 不算并行请求；
+ - 如果同时有两个 Chunk 满足拆分规则，但是 maxInitialRequests(或 maxAsyncRequest) 的值只能允许再
+ 拆分一个模块，那么体积更大的模块会被优先拆解。
+
+ 我的理解：
+ 这里的配置用来限制分包的，避免包被拆得过细，增加请求数。
+
+ -----------------------------------------------------------------------
+ 限制分包体积
+ 除了上面介绍的minChunks以及maxInitialRequest/maxAsyncRequest，还可以做一些配置，防止一些过小的包
+ 被拆出来。而过大的包应该被拆开，避免单个包过大。
+
+ 这一规则相关的配置项有：
+ - minSize： 超过这个尺寸的 Chunk 才会正式被分包；
+ - maxSize： 超过这个尺寸的 Chunk 会尝试进一步拆分出更小的 Chunk；
+ - maxAsyncSize： 与 maxSize 功能类似，但只对异步引入的模块生效；
+ - maxInitialSize： 与 maxSize 类似，但只对 entry 配置的入口模块生效；
+ - enforceSizeThreshold： 超过这个尺寸的 Chunk 会被强制分包，忽略上述其它 Size 限制。
+
+-------------------------------------------------------------------------
+梳理一下splitChunkPlugin的流程:
+
+1.SplitChunksPlugin 尝试将命中 minChunks 规则的 Module 统一抽到一个额外的 Chunk 对象；
+2.判断该 Chunk 是否满足 maxInitialRequests 阈值，若满足则进行下一步；
+3.判断该 Chunk 资源的体积是否大于上述配置项 minSize 声明的下限阈值；
+   --如果体积小于 minSize 则取消这次分包，对应的 Module 依然会被合并入原来的 Chunk
+   --如果 Chunk 体积大于 minSize 则判断是否超过 maxSize、maxAsyncSize、maxInitialSize 
+    声明的上限阈值，如果超过则尝试将该 Chunk 继续分割成更小的部分
+
+
+虽然 maxSize 等阈值规则会产生更多的包体，但缓存粒度会更小，命中率相对也会更高，配合持久缓存与 HTTP2 的多路复用
+能力，网络性能反而会有正向收益。
+
+注意，这些条件的优先级顺序为： maxInitialRequest/maxAsyncRequests < maxSize < minSize。
+而命中 enforceSizeThreshold 阈值的 Chunk 会直接跳过这些条件判断，强制进行分包。
+
+---------------------------------------------------------------------------
+缓存组 cacheGroups 简介
+cacheGroups可以手动配置想要对哪些目录的文件单独做chunk处理，比如node_modules:
+
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        vendors: {
+            test: /[\\/]node_modules[\\/]/,
+            minChunks: 1,
+            minSize: 0
+        }
+      },
+    },
+  },
+};
+
+cacheGroups 支持上述 minSice/minChunks/maxInitialRequest 等条件配置，此外还支持一些与分组逻辑强相关的
+属性，包括：
+
+ - test：接受正则表达式、函数及字符串，所有符合 test 判断的 Module 或 Chunk 都会被分到该组；
+ - type：接受正则表达式、函数及字符串，与 test 类似均用于筛选分组命中的模块，区别是它判断的依据是文件类型
+         而不是文件名，例如 type = 'json' 会命中所有 JSON 文件；
+ - idHint：字符串型，用于设置 Chunk ID，它还会被追加到最终产物文件名中，例如 idHint = 'vendors' 时，输
+         出产物文件名形如 vendors-xxx-xxx.js ；
+ - priority：数字型，用于设置该分组的优先级，若模块命中多个缓存组，则优先被分到 priority 更大的组。
+
+-------------------------------------------------------------------------
+经过以上的优化教程，以我的简历为例，打包时间可以从原先的18秒左右，降到900多毫秒
+
+
+=============================================================================
+=============================================================================
+=============================================================================
+关于代码文件压缩
+
+代码压缩是指在不改变代码的功能之下，缩小代码的体积，通过去除多余的空格，注释，压缩变量名称等方式
+将代码的体积变小。
+
+代码压缩的管家难问题是，如何用更精简的代码表达同一套程序逻辑。
+
+代码压缩的原理:
+
+ - 变量名 name 语义很明确，大多数“人”看到就基本明白是干什么用的，但这对计算机并没有什么意义，我们完
+    全可以将 name 修改为 a —— 从 4 个字符精简为 1 个字符，但仍保持改动前后逻辑、功能效果完全一致；
+
+ - 赋值操作符 = 前后都有空格，这种格式对阅读代码的“人”很友好，视觉效果非常舒适、整齐，但对计算机而言
+    同样毫无意义，我们可以将这前后两个空格删掉 —— 精简了两个字符；
+
+ - 虽然 const 与 let 关键词的功能不同，但特定情况下我们同样能牺牲一部分功能性，用 let 替换 const，从
+     5 个字符精简为 3 个字符。
+
+
+为了应对这一系列的的问题，通过将代码先生成为AST(抽象语法树),然后再在语法树的基础上进行语义，语法，逻辑推理
+的简化操作，然后再生成出被简化过后的代码文件.
+
+这些工具很多，例如:Terser、ESBuild、CSS-Nano、babel-minify、htmlMinifierTerser 等
+这些工具可以在webpack中轻松接入:
+
+-----------------------------------------------------------------------------
+使用 TerserWebpackPlugin 压缩 JS
+
+Terser是当下最流行的ES6代码压缩工具了，支持：
+ - 去除死代码的功能（ Dead-Code Eliminate）
+ - 删除注释
+ - 删除空格
+ - 代码合并
+ - 变量名简化
+
+ 等一系列代码压缩功能。Terser的前身是大名鼎鼎的UglifyJS,它在UglifyJS的基础上增加了ES6的语法支持
+ 并重构了代码解析，压缩算法，使得执行效率与压缩效率都有很大的提升
+
+ Webpack5内置了Terser的JS代码压缩功能，只需要通过很简单的配置就可以使用:
+ module.exports = {
+  optimization: {
+    minimize: true
+  }
+};
+使用 mode = 'production' 启动生产模式构建时，默认也会开启 Terser 压缩。
+
+
+也可以这样配置:
+const TerserPlugin = require("terser-webpack-plugin");
+
+module.exports = {
+    optimization: {
+        minimize: true
+        minimizer: [
+            new TerserPlugin({
+                options: {  
+                    //用于配置需要压缩什么文件
+                    test: /\.m?js(\?.*)?$/i,
+                    //用于过滤哪些Chunk压缩，哪些不压缩
+                    chunkFilter: [Function: chunkFilter],
+                    //warningsFilter 一个过滤警告的函数，返回 true 表示保留警告信息
+                    warningsFilter: [Function: warningsFilter],
+                    //移除注释
+                    extractComments: true,
+                    //sourceMap 是否开启 sourceMap 或通过对象指定 sourceMap 选项
+                    sourceMap: true,
+                    //cache 是否允许缓存文件，默认为 true。（ webpack5 下无法工作 ）
+                    cache: true,
+                    //cacheKeys 一个返回 cacheKeys 对象的函数，覆盖默认的 cache keys。（ webpack5 下无法工作 ）
+                    cacheKeys: [Function: cacheKeys],
+                    //parallel 多进程并行提升打包速度，默认值为 cpu 核心数减 1 ： os.cpus().length - 1
+                    parallel: true,
+                    //include 包括的文件或目录
+                    include: undefined,
+                    //exclude 要排除的文件或目录
+                    exclude: undefined,
+                    //minify 覆盖默认的 minify 函数
+                    minify: undefined,
+                    //插件的压缩选项配置
+                    terserOptions: {
+                        //指定一些额外的解析选项
+                        parse: [Object],
+                        //指定压缩选项，或跳过压缩
+                        compress: [Object],
+                        //指定变量名压缩选项，或跳过破坏变量名
+                        mangle: [Object],
+                        //输出选项
+                        output: [Object]
+                    }
+                }
+            })
+        ]
+    }
+}
+
+TerserPlugin的配置文档大全（中文）:
+https://drylint.com/Webpack/terser-webpack-plugin.html
+
+
+
+---------------------------------------------------------------------------------------
+terser-webpack-plugin 插件并不只是 Terser 的简单包装
+它还用适配器模式适配了SWC UglifyJS  ESBuild 作为压缩器，配置一下就可以更换工作模式:
+
+module.exports = {
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        minify: TerserPlugin.swcMinify,
+        // `terserOptions` 将被传递到 `swc` (`@swc/core`) 工具
+        // 具体配置参数可参考：https://swc.rs/docs/config-js-minify
+        terserOptions: {},
+      }),
+    ],
+  },
+};
+
+
+TerserPlugin 内置如下压缩器：
+
+ - TerserPlugin.terserMinify：依赖于 terser 库；
+ - TerserPlugin.uglifyJsMinify：依赖于 uglify-js，需要手动安装 yarn add -D uglify-js；
+ - TerserPlugin.swcMinify：依赖于 @swc/core，需要手动安装 yarn add -D @swc/core；
+ - TerserPlugin.esbuildMinify：依赖于 esbuild，需要手动安装 yarn add -D esbuild。
+
+ 另外，terserOptions 配置也不仅仅专供 terser 使用，而是会透传给具体的 minifier，因此使用不同压缩
+ 器时支持的配置选项也会不同。
+
+
+---------------------------------------------------------------------------------------
+使用 CssMinimizerWebpackPlugin 压缩 CSS
+css是一种灵活多变略显复杂的声明式语言。
+css同样也可以压缩，主要效果还是去除注释，压缩空格换行符，规范化书写等。
+
+安装CssMinimizerWebpackPlugin:
+
+npm i mini-css-extract-plugin css-minimizer-webpack-plugin
+
+要用两个组件， mini-css-extract-plugin用于将css提取成单个文件，css-minimizer-webpack-plugin用于压缩css
+
+配置:
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+
+module.exports = {
+  //...
+  module: {
+    rules: [
+      {
+        test: /.css$/,
+        // 注意，这里用的是 `MiniCssExtractPlugin.loader` 而不是 `style-loader`
+        use: [MiniCssExtractPlugin.loader, "css-loader"],
+      },
+    ],
+  },
+  optimization: {
+    minimize: true,
+    minimizer: [
+      // Webpack5 之后，约定使用 `'...'` 字面量保留默认 `minimizer` 配置
+      "...",
+      new CssMinimizerPlugin(),
+    ],
+  },
+  // 需要使用 `mini-css-extract-plugin` 将 CSS 代码抽取为单独文件
+  // 才能命中 `css-minimizer-webpack-plugin` 默认的 `test` 规则
+  plugins: [new MiniCssExtractPlugin()],
+};
+
+-----------------------------------------------------------------------------------
+当然还可以使用 HtmlMinifierTerser 压缩 HTML
+
+pnpm i -D html-minimizer-webpack-plugin
+
+const HtmlMinimizerPlugin = require("html-minimizer-webpack-plugin");
+
+ optimization: {
+    minimize: true,
+    minimizer: [
+      // Webpack5 之后，约定使用 `'...'` 字面量保留默认 `minimizer` 配置
+      "...",
+      new HtmlMinimizerPlugin({
+        minimizerOptions: {
+          // 折叠 Boolean 型属性
+          collapseBooleanAttributes: true,
+          // 使用精简 `doctype` 定义
+          useShortDoctype: true,
+          // ...
+        },
+      }),
+    ],
+  },
+
+代码压缩和代码混淆是什么关系
+
+总价：代码混淆的目的是降低代码可读性，目的不一样，但是有时候在代码压缩的时候可以顺便做到降低代码的可读性。
+
+代码压缩侧重的是减少代码体积，而代码混淆侧重的是降低代码可读性，从而达到保护代码，降低代码被别有
+用心的人利用的目的。个人认为，代码压缩是代码混淆的一种实现手段，因为代码压缩必然会导致代码可读性降
+低，但代码混淆的手段却不止有代码压缩，并且代码混淆有时候还会导致代码体积的膨胀，比如说现在常用到
+的流程平坦化，这种混淆方式就会使代码体积膨胀，但对于降低可读性却具有重要作用。所以说，代码压缩和
+代码混淆的概念不是等价的。
+
+=============================================================================
+=============================================================================
+=============================================================================
+更多的优化技巧:
+1.模块动态加载
+2.HTTP 缓存优化 就是配置chunk的文件名，达到增量更新的效果
+3.使用外置依赖。
+4.使用 Tree-Shaking 删除多余模块导出
+module.exports = {
+  mode: "production",
+  optimization: {
+    usedExports: true,
+  },
+};
+使用 Scope Hoisting 合并模块
+将符合条件的多个模块合并到同一个函数空间
+const ModuleConcatenationPlugin = require('webpack/lib/optimize/ModuleConcatenationPlugin');
+
+module.exports = {
+    // 方法1： 将 `mode` 设置为 production，即可开启
+    mode: "production",
+    // 方法2： 将 `optimization.concatenateModules` 设置为 true
+    optimization: {
+        concatenateModules: true,
+        usedExports: true,
+        providedExports: true,
+    },
+    // 方法3： 直接使用 `ModuleConcatenationPlugin` 插件
+    plugins: [new ModuleConcatenationPlugin()]
+};
+
+5.监控产物体积
+
+
+=============================================================================
+=============================================================================
+=============================================================================
+辅助参考:
+https://developer.aliyun.com/article/916711
+loader到底是什么，我们可以自定义Loader吗？
+
+
+我们可以自定义loader
+
+例如定义一个loader
+
+
+module.exports = function(source, sourceMap?, data?) {
+  return source;
+};
+
+
+然后在我们的webpack配置里引入loader:
+const path = require("path");
+
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: [{ 
+          // 传入示例 Loader 的绝对路径
+          loader: path.resolve(__dirname, "../dist/index.js") 
+        }],
+      },
+    ],
+  },
+};
+
+
+需要注意的是Loader是文件处理工具，就是将webpack配置好各种类型的文件过滤器，然后识别到特定文件以后
+特定文件都会进入到某个“处理器”即loader中进行处理，再输出。
+ - 输入文件的字符串内容
+ - 输出处理好的文件的字符串内容
+
+Loader处理的一些简单思路:
+ - 简单来说webpack loader是一个从string到string的函数，输入的是字符串的代码，输出也是字符串的代码。
+
+ - 通常来说对于各种文件的处理loader已经都有很好的轮子了，我们自己来编写的loader通常是用来做代码处理的，
+
+ 也就是说在loader中拿到source之后，我们将其转换为AST树，然后在这个AST上进行一些修改，之后再将其转换为字
+ 符串代码之后进行返回。
+
+ - 从字符串到AST语法分析树是为了得到计算机容易识别的数据结构，在webpack中自带了一些工具，acorn是代码转AST
+ 的工具，estraverse是AST遍历工具，escodegen是转换AST到字符串代码的工具。
+
+ - 既然loader是字符串到字符串的，那么在代码转换为AST处理之后需要转为字符串，然后再传递到下一个loader，下一
+ 个loader可能又要进行相同的转换，这样还是比较耗费时间的，所以可以通过speed-measure-webpack-plugin进行速率
+ 打点，以及cache-loader来存储AST。
+
+ - loader-utils是在loader中常用的辅助类，常用的有urlToRequest绝对路径转webpack请求的相对路径，urlToRequest
+ 来获取配置loader时传递的参数。
+
+
+目前我们实现的loader都是同步loader
+--------------------------------------------------------------------------------
+什么是同步loader:
+同步loader指的是同步的返回转换后的内容。由于是在Node.js这样的单线程环境，所以转换过程会阻塞
+整个构建，构建缓慢，不适用于耗时较长的环境中。对于同步loader，主要有两种方法返回转换后的内容：
+return和this.callback()
+
+使用callback返回处理结果:
+this.callback(
+  err: Error | null,
+  content: string | Buffer,
+  sourceMap?: SourceMap,
+  meta?: any
+);
+（1）第一个参数为无法转换原内容，Webpack会返回一个Error。
+（2）第二个参数即为经过转换后的内容(为输出的内容)。
+（3）指与编译后代码所映射的源代码，便于调试。为了在此loader中获取该sourceMap，则需要在创建的webpack做一下配置
+（以js为例，babel-loader会将基础ES6语法进行转换为ES5，通过devtool可以开启source-map）
+
+module.exports = {
+    // ...
+    module: {
+        rules: [
+            {
+                test: /\.js$/,
+                use: [
+                    'test-loader',// 该loader即为自己构建的loader
+                    {
+                        loader: 'babel-loader',
+                        options: {
+                            presets: [
+                                '@babel/preset-env'
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    devtool: 'eval-source-map',
+}
+（4）可以是任何东西，输出该参数，即可在下一个loader中获取并使用，例如通过各loader之间共享通用的AST，加速编译时间。
+
+
+-----------------------------------------------------------------------------
+什么是异步loader:
+同步loader只适合于计算量小，速度快的场景，但是对于计量量大、耗时比较长的场景（例如网络请求），使用同步loader会阻塞
+整个构建过程，导致构建速度变慢，采用异步loader即可避免该问题。对于异步loader，使用this.async()可以获取到callback
+函数，该函数参数和同步loader中this.callback参数一致。
+
+module.exports = function(content, map, meta) {
+    // 获取callback函数
+    const callback = this.async();
+    // 用setTimeout模拟该异步过程
+    setTimeout(() => {
+        // 处理后获得的结果output
+    const output = dealOperation(source);
+        callback(null, output, map, meta);
+    }, 100)
+}
+
+需要用this.async来获得异步loader的返回结果回调函数
+
+-------------------------------------------------------------------------------
+Loader 可能碰到的文件类型:
+ - utf-8的代码文件，也就是文本文件
+ - 图片视频等二进制文件
+
+所以loader也可以处理raw(二进制)类型的文件：
+ - 这样的loader我们称之为raw - Loader
+
+// raw-test-loader.js
+module.exports = function(source, map, meta) {
+    // 处理输入的资源
+    const output = dealOperation(source);//伪代码
+    return output;
+}
+// 通过该属性告诉webpack该loader是否需要返回二进制数据
+module.exports.raw = true;
+
+通过配置module.exports.raw = true 来告知webpack是否要处理raw类型的文件
+
+--------------------------------------------------------------------------------
+获得你自己定义的loader选项
+对于webpack配置中，loader往往有一些options参数，对于自己编写的loader中为了获取options参数，
+官方推荐使用loader-utils包，利用该包即可获取options中参数，然后在loader中进行处理。
+
+const loaderUtils = require('loader-utils');
+module.exports = function (source, map, meta){
+    // 获取options
+    const options = loaderUtils.getOptions(this);
+    const output = dealOperation(source);//伪代码
+    
+    return output;
+}
+
+---------------------------------------------------------------------------------
+ 控制是否需要进行缓存:
+
+module.exports = function(source, map, meta) {
+    // 关闭缓存
+    this.cacheable(false);
+    return source;
+}
+
+
+---------------------------------------------------------------------------------
+loader中的pitch函数是做什么的，怎么用?
+Pitch 翻译成中文是_抛、球场、力度、事物最高点_等
+
+pitch函数和webpack的loader调用逻辑强相关。
+
+webpack在调用loader的时候，存在“链式调用”的情况
+
+链式调用是这样的:
+例如现在有（从右到左）4个loader:
+
+loader4  loader3  loader2  loader1
+
+那么webpack调用loader会这么调用
+
+webpack aaa/bbb/ccc/x.json → loader4.pitch() → loader3.pitch() → loader2.pitch() → loader1.pitch()
+                                                                                        ↓
+                                                            webpack取出这个aaa/bbb/ccc/x.json的文件内容
+                                                                                        ↓
+webpackd 得到返回结果       ← loader4()      ←  loader3()       ← loader2()       ← loader1()
+
+webpack会在真正执行loader之前先从左到右执行一遍picth(),然后再从右到左执行loader本身()
+
+pitch的写法:
+
+module.exports = function(source, map, meta) {
+    return source;
+}
+
+module.exports.pitch = function(remainingRequest, previousRequest, data){
+
+}
+
+ - remainingRequest : 当前 loader 之后的资源请求字符串；
+ - previousRequest : 在执行当前 loader 之前经历过的 loader 列表；
+ - data : 与 Loader 函数的 data 相同，用于传递需要在 Loader 传播的信息。
+
+需要注意的是，remainingRequest只会给出文件的本地绝对路径。
+
+如果在pitch中return了，那么将会熔断这个调用链:
+
+
+webpack aaa/bbb/ccc/x.json → loader4.pitch() → loader3.pitch() 
+                                                     ↓
+                                                ↓
+                                            ↓                                                                           
+webpackd 得到返回结果       ← loader4()      
+
+例如loader3的pitch得到了一个返回值，那么它将会使用这个返回值反向传送给loader4的本体进行处理。
+
+那么这个是用来做什么的呢？
+例如在你的loader处理链条上，一般都是把一个语言由高级别逐步处理成低级别，但是有可能你处理的文件
+本身就是低级别文件，为了兼容这种情况，pitch可以用来逐步检查当前处理的文件，如果检查到当前文件
+并不需要那么高级别的处理方式，便可以不再往下，而是从当前的pitch点，直接处理，并在loader链上往回
+处理，直到回到webpack层。
+
+所以它的最关键功能就是阻断!
+需要注意的是，如果我们在loader里面将引用结果改为inline的loader执行方式，当以上流程处理结束后，
+webpack将会根据inline的loader命令再次执行一遍loader链:
+var content = require('!!css-loader!less-loader!./xxx.less');
+
+----------------------------------------------------------------------------------
+补充知识点:
+inline Loader的字符释义
+ - “!”禁用已经配置的所有普通(normal)Loader
+ - “!!” 前缀，将禁用所有已配置的 loader（preLoader, loader, postLoader）
+ - “-!” 将禁用所有已配置的 preLoader 和 loader，但是不禁用 postLoaders
+
+----------------------------------------------------------------------------------
+总结
+Loader主要根据webpack的module配置来过滤到相应的文件，然后待匹配到相应文件的时候再进行文件处理的一种
+机制，这种机制是根植于webpack的loader处理链上的，虽然自由度不高，但是可以快速方便地开发出我们想要处理
+的文件的对应处理方法。
+
+
+
+=============================================================================
+=============================================================================
+=============================================================================
+webpack插件是什么？如何自定义插件?
+上一节说过Loader就是文件筛选处理器，用于筛选相关文件并做出相应处理的一种webpack流程组件.
+那么既然有这么好的自定义组件，为什么还有webpack插件这种东西呢？webpack插件究竟是用来做什么的？怎么用?
+
+webpack插件是一种比loader更灵活地webpack组件，它可以控制webpack中打包流程里的一切，通过实现
+webpack中种类庞大的Hook几乎可以完成任何事情,甚至改写webpack.
+
+-------------------------------------------------------------------------------
+插件简介:
+从形态上看，插件通常是一个带有apply函数的类：
+class SomePlugin {
+    apply(compiler) {
+    }
+}
+
+webpack在调用这个插件的时候，会通过调用这个插件的apply方法，将编译器对象传入:
+class SomePlugin {
+  apply(compiler) {
+    compiler.hooks.thisCompilation.tap("SomePlugin", (compilation) => {
+      compilation.addModule(/* ... */);
+    });
+  }
+}
+
+---------------------------------------------------------------------------------
+Tapable是webpack插件架构的核心支架，本文就是围绕订阅/发布模式叠加各种特化逻辑，适配webpack体系下复杂的
+事件源-处理器之间交互需求。
+
+Tapable使用时通常需要经历如下步骤:
+ - 创建钩子实例
+ - 调用订阅接口注册回调，包括：tap,tapAsync,TapPromise
+ - 调用发布接口触发回调，包括：call,callAsync,promise
+----------------------------------------------------------------------------------
+
+WebpackHook 有两个重点，一是上面介绍的触发时机；二是触发时传递的上下文参数。例如：
+ - compiler.hooks.compilation ：
+    --时机：Webpack 刚启动完，创建出 compilation 对象后触发；
+    --参数：当前编译的 compilation 对象。
+ - compiler.hooks.make：
+    --时机：正式开始构建时触发；
+    --参数：同样是当前编译的 compilation 对象。
+ - compilation.hooks.optimizeChunks ：
+    --时机： seal 函数中，chunk 集合构建完毕后触发；
+    --参数：chunks 集合与 chunkGroups 集合。
+ - compiler.hooks.done：
+    --时机：编译完成后触发；
+    --参数： stats 对象，包含编译过程中的各类统计信息。
+
+每个钩子传递的上下文不同，但主要包含以下几种类型:
+
+ - complation对象:构建管理器，使用频率非常高，主要提供了一系列与单词构建相关的接口，包括：
+    --addModule:用于添加模块，例如Module遍历出依赖之后，就会调用该接口将新模块添加到构建需求中。
+    --addEntry:添加新的入口模块，效果与直接定义entry配置相似；
+    --emitAsset：用于添加产物文件，效果与LoaderContext的emitAsset相同；
+    --getDependencyReference:从给定模块返回对依赖项的引用，常用于计算模块引用关系；
+ - compiler 对象：全局构建管理器，提供如下接口：
+    --createChildCompiler:创建子compiler对象，子对象将继承原始Compiler对象的所有配置数据；
+    --createCompilation:创建compilation对象，可以借此实现并行编译；
+    --close:结束编译；
+    --getCache:获取缓存接口，科技次复用Webpack5的缓存功能；
+    --getInfrastructureLogger:获取日志对象;
+ - module 对象：资源模块，有诸如NormalModule.RawModule.ContectModule等子类型，其中NormalModule使用
+ 频率较高，提供如下接口:
+   - identifier:读取模块的唯一标识
+   - getCurrentLoader:获取当前正在执行的Loader对象
+   - originalSource:读取模块原始内容
+   - serialize/deserialize:模块序列化与反序列化函数，用于实现持久化缓存，一般不需要调用
+   - issuer:模块的引用者；
+   - isEntryModule:用于判断该模块是否为入口文件
+ - chunk 对象：模块封装容器，提供如下接口：
+   - addModule:添加模块，之后这个被添加进去的模块会和Chunk一起呗打包成产物
+   - removeModule:删除模块；
+   - cantainsModule:判断是否包含某个特定模块
+   - size:推断最终构建出的产物大小
+   - hasRuntime:判断Chunk中是否包含运行时代码
+   - updateHash:计算hash值。
+ - stats 对象：构建过程收集到的统计信息，包括模块构建耗时，模块依赖关系，产物文件列表等。
+-----------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

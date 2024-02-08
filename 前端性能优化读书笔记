@@ -1,0 +1,339 @@
+https://juejin.cn/book/6844733750048210957/section/6844733750031417352
+----------------------------------------------------------------------
+
+从输入 URL 到页面加载完成，发生了什么？
+
+1.Dns解析
+2.Tcp链接
+3.Http请求抛出
+4.服务器端处理请求，Http响应返回
+5.浏览器响应的Html内容，然后开始解析，然后把解析结果渲染出来
+
+需要把这五个过程滴水不漏地考虑到自己的性能优化方案内。
+
+前端可以做的事情主要集中在这两个方面:
+1.网络请求方面
+2.渲染层
+
+
+涉及到网络层面的性能/时间损耗主要有三个过程:
+ - Dns解析
+ - Tcp链接
+ - HTTP请求/响应
+
+ 由于DNS解析和TCP链接的部分我们前端能做的事情很少，所以主要重点是HTTP链接的部分
+ HTTP链接优化，主要有两个大的方向:
+  - 减少请求次数
+  - 减少单次请求所花费的时间
+
+WEBPACK的优化瓶颈，主要是这两个方面：
+ - webpack的构建过程太花时间
+ - webpack打包的结果体积太大
+
+ 通过webpack核心原理的学习，我学习到了
+ 1.优化webpack的打包时间需要做:
+    - 多线程loader，happyPack  或者 thread-loader
+    - 开启webpack的持续化缓存
+    - 将dev里面的一些后处理操作去掉
+    - 使用DLLPlugin将第三方库打包成单独的文件 或者 开启chunkSplit将node_modules里的内容单独打包成一个chunk
+    - 在使用terser的时候，设置并行数，多线程打包parallel
+    - babel设置exclude将例如node_modules这种文件夹排除
+
+2.优化请求以及浏览器缓存：
+    - 手动设置webpack的输出chunk的名称，打上[contentHash]帮助浏览器缓存文件
+    - 看情况将首屏加载的一些模块也做成异步加载的，并且懒加载化。
+    - 开启chunkSplit,并将一些首屏显示之外的模块写成异步加载的，这样有助于浏览器进行缓存。
+    - 通过以上的设置，initalChunk的大小（也就是首屏加载）的文件大小将缩小，加快首屏加载。
+    - 开启webpack的gzip压缩，进一步减少请求尺寸,但是相应的web服务也要开启gzip压缩例如nginx
+
+
+-----------------------------------------------------------------
+
+使用dllPlugin：
+new webpack.DllPlugin({
+    // DllPlugin的name属性需要和libary保持一致
+    name: '[name]_[hash]',
+    path: path.join(__dirname, 'dist', '[name]-manifest.json'),
+    // context需要和webpack.config.js保持一致
+    context: __dirname,
+}),
+
+使用dllPlugin要注意，Dllplugin是单独把node_modules进行打包的工具
+需要单独编译，不能和项目一起编译
+
+
+项目中的wepackConfig也需要配置，需要告知项目本体，已经打包了这些文件了，不需要再进行打包了
+单靠文档:
+https://blog.csdn.net/qq_35779012/article/details/119600682
+
+
+------------------------------------------------------------------
+浏览器的缓存机制详解:
+浏览器的缓存机制有四个方面：
+1.Memory cache
+2.Service Worker cache
+3.Http cache
+4.Push cache
+------------------------------------------------------------------
+Http缓存
+Http缓存分为：
+ - 强缓存
+ - 协商缓存
+优先级较高的是强缓存，在命中强缓存失效的情况下，才会走协商缓存。
+
+----强缓存的特征----
+强缓存是通过http头中 Expires和Cache-control两个字段来进行控制的。
+当请求再次发出时，浏览器会根据其中的expires和cache-control判断目标资源是否命中强缓存，
+如果命中的话就从缓存中获取资源，不会再与服务端发生通信。
+
+命中强缓存的情况下，返回的HTTP状态码为200
+
+需要注意的是，强缓存需要在web服务端设置，例如express 或者nginx等
+context.set('Cache-Control', 'max-age=10');
+
+强缓存设置项：
+ - private：仅浏览器可以缓存（默认值）；
+ - public：浏览器和代理服务器都可以缓存；
+ - max-age=xxx：浏览器的过期时间单 位秒
+ - no-cache：不进行强缓存；
+ - no-store：不强缓存，也不协商缓存）
+ - s-maxage:设置cdn的缓存过期时间 位秒
+
+nginx的缓存(强缓存/协商缓存)设置方法:
+https://www.cnblogs.com/cangqinglang/p/16354804.html
+
+
+304(协商缓存)缓存:
+如果服务端提示缓存资源未改动（Not Modified），资源会被重定向到浏览器缓存，
+这种情况下网络请求对应的状态码是 304。
+
+开启条件:
+Cache-Control ： no-cache
+
+这种情况下，服务器会返回两个和缓存相关的头字段:
+
+Last-Modified
+Etag
+
+Last-Modified 用于在下次请求的时候（If-Modified-Since）对比服务器的文件修改时间。
+Etag 则类似于文件hash，判断文件是否真的修改了.
+
+
+当我们的资源内容不可复用时，直接为 Cache-Control 设置 no-store，拒绝一切形式的缓存；
+否则考虑是否每次都需要向服务器进行缓存有效确认，如果需要，那么设 Cache-Control 的值为 
+no-cache；否则考虑该资源是否可以被代理服务器缓存，根据其结果决定是设置为 private 还是 
+public；然后考虑该资源的过期时间，设置对应的 max-age 和 s-maxage 值；最后，配置协商缓
+存需要用到的 Etag、Last-Modified 等参数。
+
+
+--------------------------------------------------------------------------------
+MemoryCache
+MemoryCache,是指存在内存中的缓存，从优先级上来说，它是浏览器最先尝试去命中的缓存了。
+
+生命周期:Tab关了就没了。
+
+那么哪些文件会被放入内存呢？
+
+资源存不存内存，浏览器秉承的是“节约原则”。我们发现，Base64 格式的图片，几乎永远可以被塞进 memory cache，
+这可以视作浏览器为节省渲染开销的“自保行为”；此外，体积不大的 JS、CSS 文件，也有较大地被写入内存的几率——相
+比之下，较大的 JS、CSS 文件就没有这个待遇了，内存资源是有限的，它们往往被直接甩进磁盘。
+
+还有图片对象请求的图片也会被放入内存。
+
+--------------------------------------------------------------------------------
+Service Worker Cache
+
+Service Worker 是一种独立于主线程之外的javascript线程，它脱离于浏览器窗体本身，因此无法直接访问DOM.
+但是它课可以用来拦截请求。
+所以我们可以用它来做缓存，这样的缓存我们叫Service Worker缓存
+
+/*
+*向serviceWorker注册脚本:
+*/
+window.navigator.serviceWorker.register('/test.js').then(
+   function () {
+      console.log('注册成功')
+    }).catch(err => {
+      console.error("注册失败")
+    })
+
+/*
+*我们的test.js脚本:
+*/
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    // 尝试匹配该请求对应的缓存值
+    caches.match(event.request).then(res => {
+      // 如果匹配到了，调用Server Worker缓存
+      if (res) {
+        return res;
+      }
+      // 如果没匹配到，向服务端发起这个资源请求
+      return fetch(event.request).then(response => {
+        if (!response || response.status !== 200) {
+          return response;
+        }
+        // 请求成功的话，将请求缓存起来。
+        caches.open('test-v1').then(function(cache) {
+          cache.put(event.request, response);
+        });
+        return response.clone();
+      });
+    })
+  );
+});
+
+需要注意的是serviceWorker需要用https协议才能支持，否则不支持
+
+-------------------------------------------------------------------------------------
+Push Cache
+
+Push Cache 是指 HTTP2 在 server push 阶段存在的缓存。这块的知识比较新，应用也还处于萌芽阶段，
+我找了好几个网站也没找到一个合适的案例来给大家做具体的介绍。但应用范围有限不代表不重要——HTTP2 
+是趋势、是未来。在它还未被推而广之的此时此刻，我仍希望大家能对 Push Cache 的关键特性有所了解：
+
+Push Cache 是缓存的最后一道防线。浏览器只有在 Memory Cache、HTTP Cache 和 Service Worker Cache 
+均未命中的情况下才会去询问 Push Cache。
+Push Cache 是一种存在于会话阶段的缓存，当 session 终止时，缓存也随之释放。
+不同的页面只要共享了同一个 HTTP2 连接，那么它们就可以共享同一个 Push Cache。
+
+
+
+--------------------------------------------------------------------------------------
+CDN 的缓存与回源机制解析
+ - 缓存是指把资源暂存在某个服务器上了
+ - 回源是指从这个节点上把东西取出来
+
+--------------------------------------------------------------------------------------
+webkit内核:
+ - HTML 解释器：将 HTML 文档经过词法分析输出 DOM 树。
+
+ - CSS 解释器：解析 CSS 文档, 生成样式规则。
+
+ - 图层布局计算模块：布局计算每个对象的精确位置和大小。
+
+ - 视图绘制模块：进行具体节点的图像绘制，将像素渲染到屏幕上。
+
+ - JavaScript 引擎：编译执行 Javascript 代码。
+
+
+JS的三种加载方式
+正常模式：
+
+<script src="index.js"></script>
+这种情况下 JS 会阻塞浏览器，浏览器必须等待 index.js 加载和执行完毕才能去做其它事情。
+
+async 模式：
+
+<script async src="index.js"></script>
+async 模式下，JS 不会阻塞浏览器做任何其它的事情。它的加载是异步的，当它加载结束，JS 脚本会立即执行。
+
+defer 模式：
+
+<script defer src="index.js"></script>
+
+defer 模式下，JS 的加载是异步的，执行是被推迟的。等整个文档解析完成、DOMContentLoaded 事件即将被触发时，
+被标记了 defer 的 JS 文件才会开始依次执行。
+
+
+--------------------------------------------------------------------------------------
+当我们需要在异步任务中实现 DOM 修改时，把它包装成微任务是相对明智的选择。
+
+比如我要更新某个元素的宽度，最好将它包装成promise,这样promise就会被扔进微任务的队列里
+然后在更新dom之前就会将微任务的事情做完，引发回流，计算，之后进行渲染。
+
+获取一些dom属性的时候也会引发回流:
+offsetTop
+offsetLeft
+offsetWidth
+offsetHeight
+scrollTop
+scrollLeft
+scrollWidth
+scrollHeight
+clientTop
+clientLeft
+clientWidth
+clientHeight
+
+这些属性因为要通过实时计算才能得出，所以会引发回流
+
+将“导火索”缓存起来，避免频繁改动
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    #el {
+      width: 100px;
+      height: 100px;
+      background-color: yellow;
+      position: absolute;
+    }
+  </style>
+</head>
+<body>
+  <div id="el"></div>
+  <script>
+  // 获取el元素
+  const el = document.getElementById('el')
+  // 这里循环判定比较简单，实际中或许会拓展出比较复杂的判定需求
+  for(let i=0;i<10;i++) {
+      el.style.top  = el.offsetTop  + 10 + "px";
+      el.style.left = el.offsetLeft + 10 + "px";
+  }
+  </script>
+</body>
+</html>
+
+避免逐条改变样式，使用类名去合并样式
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    .basic_style {
+      width: 100px;
+      height: 200px;
+      border: 10px solid red;
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <script>
+  const container = document.getElementById('container')
+  container.classList.add('basic_style')
+  </script>
+</body>
+</html>
+
+将 DOM “离线”
+
+在更改前，设置display: none，让它从渲染树上消失
+
+改好以后再设置display: block
+
+------------------------------------------------------------------
+事件的节流（throttle）与防抖（debounce）
+throttle 的中心思想在于：在某段时间内，不管你触发了多少次回调，我都只认第一次，并在计时结束时给予响应。
+
+事件的节流的方式和缓存代理类似，只是某个事件请求出现的时候，定时去执行，而不是每个事件都去执行，以节省
+浏览器开销。
+
+ - throttle（事件节流）  在事件倒计时之前只保存第一个发送过来的请求
+ - debounce（防抖） 在事件倒计时之前，永远只用最后一个发送过来的请求
+
+
+
+
+

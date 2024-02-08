@@ -1,0 +1,91 @@
+文章链接
+https://segmentfault.com/a/1190000016672263
+
+其实深拷贝和浅拷贝针对的都是引用类型，JS中的变量类型绯闻值类型（基本类型）和引用类型；对值
+类型进行复制操作会对值进行一份拷贝，而对引用类型复制，则会进行地质的拷贝，最终两个变量会指
+向同一份数据。
+
+
+浅拷贝就是只进行一层的拷贝，深拷贝就是无线层级的拷贝。
+
+使用递归去深度优先进行深拷贝，会出现爆栈的问题。
+当遍历树的层级很深的时候，就会栈溢出。
+当遍历过程中发现循环引用的变量，就会卡死，造成循环引用的现象。
+
+JSON对象的深拷贝:
+JSON.parse(JSON.stringify(source));
+
+Json对象的深拷贝也有爆栈的问题
+但是它也处理了循环引用的问题
+
+破解浏览器的递归爆栈
+第一种就是消尾递归，消尾递归的话就是限制递归深度，这显然不行。
+第二种就是利用循环进行递归
+js里递归爆栈的原因
+
+原因是每次执行代码时，都会分配一定尺寸的栈空间（Windows系统中为1M），
+每次方法调用时都会在栈里储存一定信息（如参数、局部变量、返回值等等），
+这些信息再少也会占用一定空间，成千上万个此类空间累积起来，自然就超过线程的栈空间了。
+
+可以使用循环法破除爆栈的问题：
+
+function cloneLoop(x) {
+    const root = {};
+
+    // 栈
+    const loopList = [
+        {
+            parent: root,
+            key: undefined,
+            data: x,
+        }
+    ];
+
+    while(loopList.length) {
+        // 深度优先
+        const node = loopList.pop();
+        const parent = node.parent;
+        const key = node.key;
+        const data = node.data;
+
+        // 初始化赋值目标，key为undefined则拷贝到父元素，否则拷贝到子元素
+        let res = parent;
+        if (typeof key !== 'undefined') {
+            res = parent[key] = {};
+        }
+
+        for(let k in data) {
+            if (data.hasOwnProperty(k)) {
+                if (typeof data[k] === 'object') {
+                    // 下一次循环
+                    loopList.push({
+                        parent: res,
+                        key: k,
+                        data: data[k],
+                    });
+                } else {
+                    res[k] = data[k];
+                }
+            }
+        }
+    }
+
+    return root;
+}
+
+循环法的核心思想就是将树用循环的方式进行操作，并在循环过程中切断正在循环的节点，从而避免爆栈的问题。
+
+
+如何避免引用
+其实避免引用的方法很简单，就是创建一个数组，数组中保存已经遍历过的（被拷贝对象的）项目
+然后在接下来的循环当中，每次要拷贝这个对象之前，都检查一遍这个数组，查看是否有重复的拷贝，
+有的话就不再进行深拷贝，跳过这一项。
+
+
+
+如果大家想使用文中的4种深拷贝方式，可以直接使用@jsmini/clone这个库
+
+import { clone, cloneJSON, cloneLoop, cloneForce } from '@jsmini/clone';
+
+
+

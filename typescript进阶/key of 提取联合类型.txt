@@ -1,0 +1,30 @@
+key of 是用来获取某个对象的key的关键字
+例如
+
+type LEIXING = keyof string;
+
+let bianliang : LEIXING = 'match';
+let bianliang_er : LEIXING = 'toString';
+
+但这不是主要用法主要用法如下
+-------------------------------------------------------------
+这里使用T 泛型接受对象obj,并且规定输入的key只能是这个obj的属性
+返回值只能是T[keyof T] 也就是这个obj的value
+let getObjectValue:<T> = function(obj:T,key : key of T):T[keyof T]{
+    return obj[key];
+}
+
+let bianliang = {
+    name:'111',
+    age:1
+}
+
+getObjectValue(bianliang,"name");
+
+
+还可以这样写
+
+let getObjectValue:<T,D keyof T> = function(obj:T,key:D):T[D]{
+     return obj[key];
+}
+

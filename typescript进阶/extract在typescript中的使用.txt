@@ -1,0 +1,20 @@
+extract 在ts中意为保留类型:
+例如这里有一个自定义类型:
+type LEIXING = string | number | boolean;
+
+let bianliang : Extract<LEIXING,string | number> = "你好"；
+这里的意思是，从LEIXING这个自定义类型中保留两个类型string | number
+
+
+
+
+
+
+
+
+
+
+
+
+
+

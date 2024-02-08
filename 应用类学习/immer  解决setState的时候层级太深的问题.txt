@@ -1,0 +1,117 @@
+https://zhuanlan.zhihu.com/p/146773995
+
+在 React 类组件中，state 是一个对象，当组件相对复杂时，state 对象的结构可能
+也相当复杂。
+
+比如
+class User extends Component {
+  constructor(props) {
+    super(props);
+    // 初始化state 
+    this.state = {
+      name: "freewheelLee",
+      gender: "male",
+      phone: "12345678",
+      address: {
+        country: 'China',
+        city: {
+          name: 'Shanghai',
+          area: 'PuDong',
+          postcode: 200000, // 邮编号码
+        },
+      }
+    };
+  }
+
+  // 其他代码
+}
+
+
+假如要更改这个树下面的资料的话，那么它就要这么写:
+
+this.setState((prevState) => {
+      return {
+        address: {
+          ...prevState.address,
+          city: {
+            ...prevState.address.city,
+            area: 'JingAn',
+            postcode: prevState.address.city.postcode + 10, 
+          }
+        }
+      }
+  }); 
+
+编写起来非常冗长
+原因是react无法直接更改更深层级的内容，react只支持更改第一层级的内容。
+
+所以如果这么写:
+const newState = deepClone(prevState);
+或者
+const newState = {...prevState}
+
+这样性能堪忧
+
+所以在这种情况下可以使用immer：
+import {produce} from 'immer';
+
+immer提供这样的修改方式:
+this.setState((prevState) => {
+    return produce(prevState, draftState =>{
+        draftState.address.city.area = 'JingAn';
+        draftState.address.city.postcode = draftState.address.city.postcode + 10;
+    });
+});
+
+ - 当我们调用 immer 的 API produce时，immer 将内部暂时存储着我们的目标对象
+ （以 state 为例）
+ - immer 暴露一个 draft （草稿）给我们
+ - 我们在 draft 上作修改
+ - immer 接收修改后的draft，immer 基于传入的 state 照着draft 的修改 返回一
+ 个新的 state
+
+-------------------------------------------------------------------
+不可变的对象概念
+
+首先我们来描述一下问题，
+在我们对引用类型的数据结构做一些操作的时候，会不可避免地造成一些引用：
+var a = [{b:1}]
+var b = a.map(function(_item){
+    _item.b = 2;
+});
+
+
+a === b  //true
+也就是说，a[0].b = 2   ; b[0].b = 2
+在创建变量b的时候，它只是简单地引用了a.
+
+一般我们遇到这样的情况，可能会考虑使用深拷贝去做，让两个对象里面所有的值全部都
+复制一份出来。，不让它们产生引用关系。
+
+但是这样一来，遇到层级特别多的树，它的开销无疑是特别大的。
+
+这个时候就需要了解到一个“不可变数据”的概念了:
+
+也就是说这样的一个数据结构，一旦创建，就不能被修改了，换句话说，一旦修改
+这个数据结构里的值，它自己会返回一个新的对象出来。例如:
+
+var a = [{b:1}]
+var b = a[0].b = 2
+
+如果我们的a是immer数据类型，它会在更改以后，返回一个已经被更给好的，但是全新
+的一个结构给 b
+
+这么一来 b 就不会等于 a 了
+
+不可变数据 就是一旦创建，就不能再被更改的数据。对该对象的任何修改或添加删除操作
+都会返回一个新的对象。使用 Structural Sharing（结构共享），即如果对象树中一个
+节点发生变化，只修改这个节点和受它影响的父节点，其它节点则进行共享。
+
+
+
+社区有许多操作不可变数据的库，如 immutable.js、immer.js、immutability-helper 
+等。以Immer为例， 返回一个新的对象，同时也有共同的节点保持相同的引用。
+
+immer的原理是使用proxy的getter和setter实现的
+
+

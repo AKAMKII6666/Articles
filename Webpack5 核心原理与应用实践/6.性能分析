@@ -1,0 +1,52 @@
+性能分析
+
+webPack构建过程相当复杂，在优化webpack的构建速度的手可以借助一些工具进行分析
+但是分析的话需要webpack输出一些可供分析的日志才行，所以需要对webpack进行配置：
+// webpack.config.js
+module.exports = {
+  // ...
+  profile: true
+}
+
+配置了profile为true之后，然后运行编译命令
+
+webpack --json > status.json --config ./webpack.config.js 
+
+然后就会有一个webpack的构建日志文件(status.json)被生成在了项目的根目录下
+
+-------------------------------------------------------------------------------
+status.json 收集了 Webpack 运行过程中许多值得关注的信息，包括：
+ - modules：本次打包处理的所有模块列表，内容包含模块的大小、所属 chunk、构建原因、依赖模块等，特别是 modules.profile 属性，包含了构建该模块时，解析路径、编译、打包、子模块打包等各个环节所花费的时间，非常有用；
+ - chunks：构建过程生成的 chunks 列表，数组内容包含 chunk 名称、大小、包含了哪些模块等；
+ - assets：编译后最终输出的产物列表、文件路径、文件大小等；
+ - entrypoints：entry 列表，包括动态引入所生产的 entry 项也会包含在这里面；
+ - children：子 Compiler 对象的性能数据，例如 extract-css-chunk-plugin 插件内部就会调用 compilation.createChildCompiler 函数创建出子 Compiler 来做 CSS 抽取的工作。
+
+
+然后使用一些分析工具，可以可视化地分析Webpack的打包构建过程，了解构建的性能问题所在
+
+ - Webpack Analysis ：Webpack 官方提供的，功能比较全面的 stats 可视化工具；
+ - Statoscope：主要侧重于模块与模块、模块与 chunk、chunk 与 chunk 等，实体之间的关系分析；
+ - Webpack Visualizer：一个简单的模块体积分析工具，真的很简单！
+ - Webpack Bundle Analyzer：应该是使用率最高的性能分析工具之一，主要实现以 Tree Map 方式展示各个模块的体积占比；
+ - Webpack Dashboard：能够在编译过程实时展示编译进度、模块分布、产物信息等；
+ - Unused Webpack Plugin：能够根据 stats 数据反向查找项目中未被使用的文件。
+
+
+
+--------------------------------------------------------------------------------
+Webpack Analysis
+https://webpack.github.io/analyse/
+
+--------------------------------------------------------------------------------
+Webpack Bundle Analyzer
+https://www.npmjs.com/package/webpack-bundle-analyzer
+需要配置webpack使用:
+npm i -D webpack-bundle-analyzer
+const BundleAnalyzerPlugin = require("webpack-bundle-analyzer")
+  .BundleAnalyzerPlugin;
+
+module.exports = {
+  ...
+  plugins: [new BundleAnalyzerPlugin()],
+};

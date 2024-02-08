@@ -1,0 +1,16 @@
+https://www.bilibili.com/video/BV18y4y1i7sT/?spm_id_from=333.337.search-card.all.click&vd_source=d54a9019cfd533224c65212f0eaf5180
+
+微前端的概念就是说
+例如有一个专门用来编写组件的工程
+和一个专门编写业务的工程
+
+可以理解为编写业务的工程为 host
+编写组件的工程为 remote
+
+那么我们可以使用 webpack 的
+ModuleFedrationPlugin 来把 remote 的组件都暴露出去
+然后在 host 里使用 ModuleFedrationPlugin 把之前暴露出去的组件定义到 host 的项目中
+这样一来 host 项目就可以使用组件库里的内容了。
+
+它有两种项目类型，一个是 host,一个是 remote
+remote 提供组件给 host 进行使用

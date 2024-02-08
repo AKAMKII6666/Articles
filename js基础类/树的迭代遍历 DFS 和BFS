@@ -1,0 +1,259 @@
+https://blog.csdn.net/baidu_33591715/article/details/109901882
+
+树的遍历方式有两种，
+一种是迭代遍历，就是使用栈的方式进行遍历
+一种是递归遍历，就是使用递归的方式进行遍历
+
+在js中，递归遍历容易在浏览器底层造成栈溢出的问题（爆栈）
+所以我们可以自己在js中模拟栈的遍历方法
+
+树的迭代遍历：
+1.树的深度优先遍历：
+1.1树的前序遍历：
+前序遍历：根结点 ---> 左子树 ---> 右子树
+https://www.bilibili.com/video/BV1Ct4y1H7wE/?spm_id_from=333.880.my_history.page.click&vd_source=d54a9019cfd533224c65212f0eaf5180
+树的前序遍历的规则是在深度优先的遍历情况下处理路过的所有节点
+栈的前序遍历:
+var tree = {
+    a:{
+        d:{
+            f:1,
+            g:2,
+            h:3
+        },
+        e:{
+            i:4,
+            j:5,
+            k:6,
+            l:{
+                m:7
+            }
+        }
+    },
+    b:{
+        n:8,
+        o:9,
+        p:{
+            q:10
+        }
+    },
+    c:{
+        r:11,
+        s:{
+            t:12
+        }
+    }
+}
+
+var firstSearch = function(_tree){
+    if(typeof _tree !== 'object' || _tree === null){
+        return _tree;
+    }
+    //定义一个栈，
+    //先进后出,所以要使用push()压进去
+    //用pop()取出来
+    let stackArr = [];
+    let result = [];
+
+    //先将根节点压进去
+    if(stackArr.length === 0){
+        stackArr.push(_tree);
+    }
+
+    //为0的时候停止遍历
+    while(stackArr.length != 0){
+        //取出最末尾的那个
+        let currentItem = stackArr.pop();
+        //如果是个对象，就继续加入栈
+        if(typeof currentItem === "object"){
+            //因为要倒着入栈，所以先用一个数组暂时存起来
+            var temparr = [];
+            for(let i in currentItem){
+                //避免遍历到原型链上的属性
+                if(currentItem.hasOwnProperty(i)){
+                    temparr.push(currentItem[i]);
+                }
+            }
+            //然后使用pop将这些元素从最后面掏出来入栈
+            for(let i of temparr){
+                stackArr.push(i);
+            }
+        }else{
+            result.push(currentItem);
+        }
+    }
+
+    return result;
+}
+
+1.2树的中序遍历：
+中序遍历：左子树---> 根结点 ---> 右子树
+https://www.bilibili.com/video/BV1MS4y1q7gT/?spm_id_from=333.880.my_history.page.click&vd_source=d54a9019cfd533224c65212f0eaf5180
+树的中序遍历的规则是，先使用递归的方式深入到最深的叶子节点
+然后处理最深的那个
+再返回处理它的父级节点，再返回处理剩下的这个父级节点的子节点
+然后依次往上，再深入。直到全部处理完。
+
+
+
+1.3树的后序遍历：
+后序遍历：左子树 ---> 右子树 ---> 根结点
+https://www.bilibili.com/video/BV1K34y1577V/?spm_id_from=333.880.my_history.page.click&vd_source=d54a9019cfd533224c65212f0eaf5180
+后序遍历的规则是先深入到某个分支的最底层的叶子节点进行处理
+然后依次从下往上，找到未处理的子分支时，再深入到最底层进行
+处理，然后再依次往上，直到全部处理至根节点结束。
+
+
+
+2树的广度优先遍历：
+2.1 层次遍历：
+广度优先，又称层次遍历或者层叠遍历
+层次遍历不能用递归的方法来完成了
+需要使用迭代法来完成（栈的方式来完成）
+
+
+var tree = {
+    value:"第零层1",
+    children:[
+        {
+            value:"第一层3",
+            children:[
+                {
+                    value:"第二层7",
+                    children:[
+                        {
+                            value:"第三层9",
+                            children:[]
+                        },
+                        {
+                            value:"第三层8",
+                            children:[]
+                        },
+                        {
+                            value:"第三层7",
+                            children:[]
+                        }
+                    ]
+                },
+                {
+                    value:"第二层6",
+                    children:[
+                        {
+                            value:"第三层6",
+                            children:[]
+                        },
+                        {
+                            value:"第三层5",
+                            children:[]
+                        },
+                        {
+                            value:"第三层4",
+                            children:[]
+                        },
+                        {
+                            value:"第三层3",
+                            children:[
+                                {
+                                    value:"第四层1",
+                                    children:[]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            value:"第一层2",
+            children:[
+                {
+                    value:"第二层5",
+                    children:[]
+                },
+                {
+                    value:"第二层4",
+                    children:[]
+                },
+                {
+                    value:"第二层3",
+                    children:[
+                        {
+                            value:"第三层2",
+                            children:[]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            value:"第一层1",
+            children:[
+                {
+                    value:"第二层2",
+                    children:[]
+                },
+                {
+                    value:"第二层1",
+                    children:[
+                        {
+                            value:"第三层1",
+                            children:[]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
+
+//广度优先算法
+let breadthFirst = function(_root){
+    //这是个二维数组
+    let result = [];
+    //使用一个栈来作为临时储存
+    let stack = [];
+
+    //如果栈为空就人放入根节点
+    if(stack.length === 0){
+        stack.push(_root);
+    }
+
+    //定义一个临时储存
+    var currentLayerData = [];
+
+    while(stack.length !== 0){
+        //将栈里的数据倒着取出来
+        let leafItem = stack.pop();
+        currentLayerData.push(leafItem);
+        //如果此时栈里为空，那么说明需要查找下一层了
+        if(stack.length === 0){
+            //先将上一行的数据保存
+            result.push(currentLayerData);
+
+            //然后查找下一层，下一层的数据直接推进栈里
+            //从上一层的数据里找所有项目的children，并推进栈
+            for(let item of currentLayerData){
+                for(var cldItemChildren of item.children){
+                    stack.push(cldItemChildren);
+                }
+            }
+            
+            //再清空上一层的临时储存
+            currentLayerData = new Array();
+        }
+    }
+
+    return result;
+}
+
+==========================================================================
+这些算法可以用到dom树遍历上去
+https://www.jb51.net/article/139637.htm
+
+
+
+
+
+
+
+

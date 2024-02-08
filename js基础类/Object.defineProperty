@@ -1,0 +1,131 @@
+Object.defineProperty是VUE双向绑定原理的常见面试题
+
+首先创建一个类(也就是对象):
+var aaaa = {
+    name:"liaoli"
+}
+
+
+Object.defineProperty 接受三个参数:
+1.属性所在的对象
+2.属性的名字
+3.一个描述符对象
+
+这个描述符对象就是:
+
+｛
+    configurable:表示能否通过delete删除属性从而重新定义属性，能否修改属性的特性，或者能否把属性修改为访问器属性，默认值为false。
+    enumerable：表示能否通过for in循环访问属性，默认值为false
+    writable：表示能否修改属性的值。默认值为false。
+    value：包含这个属性的数据值。默认值为undefined。
+    get:获得值的方法
+    set:设置值的方法
+｝
+
+我的理解：
+可以使用Object.defineProperty这个方法去配置某个属性的一些基本特性，例如是否可以被delete,是否会出现在forin循环中，是否只读等等。
+也可可以直接设置它的value 
+
+
+现在我们就对aaaa这个对象，用这个方法来玩一下
+Object.defineProperty(aaaa,"name",{
+    configurable : false,
+})
+console.log(aaaa); //{ name: 'lisi' }
+delete aaaa.name;
+console.log(aaaa); //{ name: 'lisi' }
+
+通过这个方法设置好configurable 这个属性，delete就不能把name属性给删除掉了。
+
+Object.defineProperty(aaaa,"age",{
+    writable :false,
+    value : 15,
+})
+console.log(aaaa.age); //15
+aaaa.age = 20;
+console.log(aaaa.age); //15
+
+然后我们给aaaa这个对象新加了一个age属性，并且设置成只读的。
+这样我们就无法修改这个age属性了。
+
+Object.defineProperty(aaaa,"age",{
+    enumerable:false
+})
+for(var i in aaaa){
+    console.log(aaaa[i]);
+} // lisi
+
+
+在通过这个方法给enumerable设置为false，这样对象就不能通过迭代器遍历出age这个属性的值了。
+而且这里面还包含了getter方法和setter方法
+
+var book = {
+    _year : 2004,
+    edition : 1
+}
+
+Object.defineProperty(book,"year",{
+    get: function(){
+        return this._year
+    },
+    set: function(newYear){
+        if(newYear > 2004){
+            this._year = newYear;
+            this.edition += newYear - 2004
+        }
+    }
+})
+
+book.year = 2005;
+console.log(book.edition); // 2
+console.log(book._year); //2005
+
+-----------------------------------------------------------------
+defineProperty中包含三个参数：
+对象，属性名称，属性的设置
+
+属性的设置里包含了两个很重要的方法
+一个getter
+一个setter
+
+VUE早期就是使用Object.defineProperty的getter/setter来实现mvvm
+后来使用proxy了
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

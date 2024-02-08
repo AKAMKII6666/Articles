@@ -1,0 +1,13 @@
+索引签名指的是在定义的一个自定义类型结构中，都使用同样的类型
+
+type LEIXING = {
+    [x:string]:string | number
+}
+
+
+let bianliang : LEIXING = {
+    name:"123123",
+    age:1
+}
+
+这就是索引签名

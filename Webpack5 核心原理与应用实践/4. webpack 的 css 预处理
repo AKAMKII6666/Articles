@@ -1,0 +1,27 @@
+ webpack 的 css 预处理
+  - css-loader ：赋予js文件引用css文件的能力
+  - style-loader : 使得css文件可以跟随js文件在使用过程中动态以link的方式被加入页面
+  - mini-css-extract-plugin：该插件会将 CSS 代码抽离到单独的 .css 文件，并将文件通过 <link> 标签方式插
+  入到页面中。
+
+
+css-loader 提供了很多处理 CSS 代码的基础能力，包括 CSS 到 JS 转译、依赖解析、Sourcemap、css-in-module 等
+，基于这些能力，Webpack 才能像处理 JS 模块一样处理 CSS 模块代码。
+
+生产环境中通常会用 mini-css-extract-plugin 插件替代 style-loader,将样式代码抽离成单独的 CSS 文件!
+ - mini-css-extract-plugin 库同时提供 Loader、Plugin 组件，需要同时使用
+ - mini-css-extract-plugin 不能与 style-loader 混用，否则报错，所以上述示例中第 9 行需要判断 process.env.NODE_ENV 
+ 环境变量决定使用那个 Loader
+ - mini-css-extract-plugin 需要与 html-webpack-plugin 同时使用，才能将产物路径以 link 标签方式插入到 html 中
+
+- autoprefixer：基于 Can I Use 网站上的数据，自动添加浏览器前缀
+- postcss-preset-env：一款将最新 CSS 语言特性转译为兼容性更佳的低版本代码的插件
+- postcss-less：兼容 Less 语法的 PostCSS 插件，类似的还有：postcss-sass、poststylus
+- stylelint：一个现代 CSS 代码风格检查器，能够帮助识别样式代码中的异常或风格问题
+
+
+------------------------------------------------------------------------------
+总结
+ - Webpack 不能理解 CSS 代码，所以需要使用 css-loader、style-loader、mini-css-extract-plugin 三种组件处理样式资源；
+ - Less/Sass/Stylus/PostCSS 等工具可弥补原生 CSS 语言层面的诸多功能缺失，例如数值运算、嵌套、代码复用等。
+

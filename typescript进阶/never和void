@@ -1,0 +1,13 @@
+void 是指没有返回值，或者就是指undefined
+
+never是指所有类型的子类型:
+
+type LEIXING = never extends string ? string : number;
+
+联合类型:
+type Leixing = never | string | number;
+
+那么这个类型接受 string | number 
+
+用来过滤类型用的
+

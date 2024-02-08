@@ -1,0 +1,134 @@
+promise静态类型有哪些，分别有什么不同呢
+
+Promise的运行状态都有哪些
+Padding                 正在执行中，尚未回调
+fulfilled resolved      执行成功，获得数据
+rejected                执行失败，没有获得数据
+
+
+
+
+Promise有四种静态类型:
+对象的静态类型是指，这个对象不需要调用构造器创建实例就可以执行的静态方法。
+
+Promise.all         传入多个Promise 全部成功才能执行这个Promise的resolve,失败一个就全失败
+Promise.allSettled  传入多个Promise 不管有没有成功的，只要有结果了就都返回
+Promise.race        传入多个Promise  只接受第一个(无论成功失败)返回的Promise的返回值  （短路特性）
+Promise.any         传入多个Promise  只接受第一个成功的Promise返回值，如果都失败，就失败了 （短路特性）
+它们接受的参数类型相同，但各自逻辑处理不同，它们具体会有什么区别呢？
+
+我的理解，这四个静态类型都是用来做Promiose批量处理的。只是处理的方式不太一样。
+
+------------------------
+Promise.all
+
+const p = Promise.all([p1,p2,p3]);
+
+Promise.all 方法接受一个数组作为参数，p1,p2,p3都是Promises实例。如果不是Promise实例，
+则会先调用Promise.resolve方法将参数先转化为Promise实例，之后进行下一步处理。
+
+
+返回值P的状态由p1,p2,p3决定，可以分为两种情况:
+p1,p2,p3的状态全部变成fulfilled resolved,p的状态才会变成fulfilled resolved。此时
+p1,p2,p3的返回值组成一个数组，全部都返回给p的   then
+
+只要p1,p2,p3之中有一个被拒绝（rejected）,p的状态就会  变成rejectedm此时第一个被拒绝的 Promise实
+例返回值,会传递给p的回调函数 then(resolve,rejected)
+
+
+//全部成功 
+Promise.all([p1,p2,p3])
+.then(function(data){
+    console.log(data) // [1,2,3]
+})
+.catch(function(error){
+    console.log(error)
+});
+
+
+//其中有一个或者多个失败
+Promise.all([p1,p2,p3])
+.then(function(data){
+    console.log(data) 
+})
+.catch(function(error){
+    console.log(error) // error
+});
+
+
+但是会有短路效应，就是只能反回第一个失败的 Promise
+
+Promise.all 方法可以不是数组，但必须具有 Iterator 接口，且返回的每个成员都是 Promise 实例
+我的理解：
+Promise.all  方法传入的参数可以是数组，也可以不是数组，但是这都不重要，重要的是需要满足
+symbol.iterator的迭代接口实现。
+
+例如
+Promise.all([1,2,3,4,5,6,7,8,9,10]).then(function(_data){
+    console.log(_data);//这里肯定输出[1,2,3,4,5,6,7,8,9,10]  而且这个Promise的状态肯定是fulfilled rejected
+})
+//字符串也可以
+Promise.all("liaoli").then(function(_data){
+    console.log(_data);//[l,i,a,o,l,i]
+})
+
+只要满足了Iterator（迭代）接口的对象，传入promise.all里面的时候，如果数据类型不是promise,也会
+转换成promise.
+
+-----------------------
+Promise.allSettled
+基础学习
+
+Promise.allSettled()方法接受一个数组作为参数，数组的每个成员都是一个Promise对象，并返回一个新的
+Promise对象。只有等到参数数组的所有Promiose对象都发生了状态变更(不管是fulfilled还是rejectred),
+返回的Promise对象才会发生状态变更。
+
+allSettled静态方法智慧成功不会失败
+返回结果每个成员为对象，对象格式固定。
+{
+    status:"XXX"
+    value:XXX
+}
+如果 promise 成功，对象属性值 status: fulfilled，value 记录成功值
+如果 promise 失败，对象属性值 status: rejected，reason 记录失败原因。
+
+allSettled的方法也可以接受Iterator类型参数
+
+思路分析
+allSettled 方法与 all 方法最大的区别在于两点:
+
+allSettled 方法没有失败情况
+allSettled 方法返回有固定格式
+
+----------------------------
+Promise.race
+基础学习race方法形象化来讲就是赛跑机制，只认第一名，不管是成功的第一还是失败的第一。
+Promiose.race()方法同样是接受多个Promise实例，包装成一个新的Promise实例.
+race 方法就没有那么多弯弯绕绕了，只要某个 promise 改变状态就返回其对应结果。
+因此我们只需监听每个 promise 的 then 与 catch 方法，当发生状态改变，直接调用 resolve 和 reject 方法即可。
+
+
+
+
+延伸的面试题:
+promise静态类型有哪些，分别有什么不同呢
+
+回答:
+
+Promise.all         传入多个Promise 全部成功才能执行这个Promise的resolve
+Promise.allSettled  传入多个Promise 不管有没有成功的，只要都执行结束了就都返回
+Promise.race        传入多个Promise  只接受第一个(无论成功失败)返回的Promise的返回值  （短路特性）
+Promise.any         传入多个Promise  只接受第一个成功的Promise返回值，如果都失败，就失败了 （短路特性）
+它们接受的参数类型相同，但各自逻辑处理不同，它们具体会有什么区别呢？
+
+
+
+
+
+
+
+
+
+
+
+

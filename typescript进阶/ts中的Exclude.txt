@@ -1,0 +1,20 @@
+exclude意为不包含：
+(如果一个自定义类型中的类型被定义在了另一个类型里，就过滤掉，剩下那些在比对的类型中不存在的类型)
+
+type EXCLUDE<T,U> = T extends U ? never : T;
+
+type LEIXING = string;
+type LEIXING_er = string | number;
+
+let bianliang:EXCLUDE<LEIXING_er,LEIXING> = 100;
+
+--------------------------------------------------
+
+js 已经提供过了这个类型了:Exclude
+
+
+let bianliang:Exclude<LEIXING_er,LEIXING> = 100;
+
+
+let bianliang:Exclude<string | number,string> = 100;  //这里的类型过滤为number
+let bianliang:Exclude<string | number | boolean,string | boolean> = 100;  //这里的类型过滤为number

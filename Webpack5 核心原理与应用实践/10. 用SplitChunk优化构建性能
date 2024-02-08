@@ -1,0 +1,186 @@
+用SplitChunk优化构建性能
+
+ webpack默认会将很多模块都打包在一起，例如NodeModules这个文件夹下的模块
+ 优点是可以减少Http请求，缺点也很明显
+  - 初始页面的代码包太大了，影响首页加载效率。
+  - 无法有效应用浏览器缓存，也就是无法进行增量更新，每次更新都是全量更新。
+ 
+ 为此，Webpack 提供了 SplitChunksPlugin 插件
+
+ 但是在使用SplitChunksPlugin之前，我们需要深入了解，到底什么是Chunk
+
+
+-------------------------------------------------------------------------
+深入理解 Chunk
+chunk是webpack内部一个非常重要的底层设计，用于组织，管理优化最终产物，在构建流程进入到
+生成阶段之后：
+ - Webpack首先根据entry配置创建若干Chunk对象；
+ - 遍历构建(Make)阶段找到的所有Module对象，同一Entry下的模块被分配到Entry对应的Chunk中
+ - 分配完毕之后，根据SplitChunksPlugin的启发式算法进一步对这些Chunk执行裁剪，拆分，合并，
+ 代码调优，最终调整成运行性能更优的形态。
+  - 最后，这些Chunk将一个个输出成最终的产物Asset文件，编译工作到此结束.
+
+可以看出，Chunk 在构建流程中起着承上启下的关键作用 —— 一方面作为 Module 容器，根据一系列默认 
+分包策略 决定哪些模块应该合并在一起打包；另一方面根据 splitChunks 设定的 策略 优化分包，决定
+最终输出多少产物文件。
+
+我的理解：
+Chunk就是最终打包好的文件，一般情况下，单页应用只有一个chunk,但是如果单页应用中使用了异步模块加载
+的组件，那么这些异步的组件将会被单独地打包进一个chunk,在被访问到这些模块的时候，就会单独拉取这些chunk
+
+一般来说，异步模块的资源会被单独打包成一个Chunk,然后主干的资源也会单独打包成Chunk
+那么就会引发一个问题，如果异步的资源和主干的资源使用了同一套公共资源，那么这套公共的
+资源将会同时打包进这两个chunk中，这样一来，不仅没有起到优化效果，反而进行了负优化.
+
+------------------------------------------------------------------------
+SplitChunksPlugin 简介
+SplitChunksPlugin 的用法比较抽象，算得上 Webpack 的一个难点，主要能力有：
+ - SplitChunksPlugin 支持根据Module路径，Module被引用次数，Chunk大小,Chunk请求数等决定是否对Chunk
+ 做进一步拆解，这些决策都可以通过
+    -- optimization.splitChunks 相应配置项调整定制，基于这些能力我们可以实现：
+        --- 单独打包某些特定路径的内容，例如 node_modules 打包为 vendors；
+        --- 单独打包使用频率较高的文件；
+    -- SplitChunksPlugin还提供了optimization.splitChunks.cacheGroup 概念,用于对不同特点的资源做出
+    分组处理，并对这些分组设置更优针对想的分包规则；
+    -- SplitChunksPlugin还内置了default与defaultVendors两个cacheGroup,提供一些开箱即用的分包特性:
+        --- node_modules资源会命中defaultVendors规则，并被单独打包；
+        --- 只有包超过20kb的Chunk才会被单独打包；
+        --- 加载Async Chunk所需请求不得超过30个；
+        --- 加载Initial Chunk 所需请求数不得超过30个；
+
+【这里所说的请求数不能等价对标到 http 资源请求数，下面会细讲。】
+
+直接修改 optimization.splitChunks 配置项即可实现自定义的分包策略：
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      // ...
+    },
+  },
+}
+
+-----------------------------------------------------------------------
+设置分包范围:
+首先，SplitChunksPlugin默认情况下，只对异步模块生效.
+我们可以通过splitchunks.chunks调整作用范围:
+ - 字符串 'all' ：对 Initial Chunk 与 Async Chunk 都生效，建议优先使用该值；
+ - 字符串 'initial' ：只对 Initial Chunk 生效；
+ - 字符串 'async' ：只对 Async Chunk 生效；
+ - 函数 (chunk) => boolean ：该函数返回 true 时生效；
+
+例如:
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      chunks: 'all',
+    },
+  },
+}
+
+
+设置为 all 效果最佳，此时 Initial Chunk、Async Chunk 都会被 SplitChunksPlugin 插件优化。
+
+
+------------------------------------------------------------------------
+设置频率分包
+
+设置一个模块被调用超过两次就分包包处理:
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      // 设定引用次数超过 2 的模块才进行分包
+      minChunks: 2
+    },
+  },
+}
+
+注意，这里“被 Chunk 引用次数”并不直接等价于被 import 的次数，而是取决于上游调用者是否被视作 
+Initial Chunk 或 Async Chunk 处理.
+
+也就是被不同的Chunk引用的次数，无论是异步chunk还是initialChunk
+
+但是也不一定，因为被分包的话还有别的条件:
+------------------------------------------------------------------------
+限制分包数量
+在上面那个配置minChunks的基础上，为了防止被分出来的文件太多，导致Http网络请求剧增,反而进行了负
+优化,配合maxInitialRequest/maxAsyncRequest这两个参数能达到最好的效果。
+ - maxInitialRequest：用于设置 Initial Chunk 最大并行请求数；
+ - maxAsyncRequests：用于设置 Async Chunk 最大并行请求数。
+
+
+
+并行请求数关键逻辑总结如下：
+
+ - Initial Chunk 本身算一个请求；
+ - Async Chunk 不算并行请求；
+ - 通过 runtimeChunk 拆分出的 runtime 不算并行请求；
+ - 如果同时有两个 Chunk 满足拆分规则，但是 maxInitialRequests(或 maxAsyncRequest) 的值只能允许再
+ 拆分一个模块，那么体积更大的模块会被优先拆解。
+
+ 我的理解：
+ 这里的配置用来限制分包的，避免包被拆得过细，增加请求数。
+
+ -----------------------------------------------------------------------
+ 限制分包体积
+ 除了上面介绍的minChunks以及maxInitialRequest/maxAsyncRequest，还可以做一些配置，防止一些过小的包
+ 被拆出来。而过大的包应该被拆开，避免单个包过大。
+
+ 这一规则相关的配置项有：
+ - minSize： 超过这个尺寸的 Chunk 才会正式被分包；
+ - maxSize： 超过这个尺寸的 Chunk 会尝试进一步拆分出更小的 Chunk；
+ - maxAsyncSize： 与 maxSize 功能类似，但只对异步引入的模块生效；
+ - maxInitialSize： 与 maxSize 类似，但只对 entry 配置的入口模块生效；
+ - enforceSizeThreshold： 超过这个尺寸的 Chunk 会被强制分包，忽略上述其它 Size 限制。
+
+-------------------------------------------------------------------------
+梳理一下splitChunkPlugin的流程:
+
+1.SplitChunksPlugin 尝试将命中 minChunks 规则的 Module 统一抽到一个额外的 Chunk 对象；
+2.判断该 Chunk 是否满足 maxInitialRequests 阈值，若满足则进行下一步；
+3.判断该 Chunk 资源的体积是否大于上述配置项 minSize 声明的下限阈值；
+   --如果体积小于 minSize 则取消这次分包，对应的 Module 依然会被合并入原来的 Chunk
+   --如果 Chunk 体积大于 minSize 则判断是否超过 maxSize、maxAsyncSize、maxInitialSize 
+    声明的上限阈值，如果超过则尝试将该 Chunk 继续分割成更小的部分
+
+
+虽然 maxSize 等阈值规则会产生更多的包体，但缓存粒度会更小，命中率相对也会更高，配合持久缓存与 HTTP2 的多路复用
+能力，网络性能反而会有正向收益。
+
+注意，这些条件的优先级顺序为： maxInitialRequest/maxAsyncRequests < maxSize < minSize。
+而命中 enforceSizeThreshold 阈值的 Chunk 会直接跳过这些条件判断，强制进行分包。
+
+---------------------------------------------------------------------------
+缓存组 cacheGroups 简介
+cacheGroups可以手动配置想要对哪些目录的文件单独做chunk处理，比如node_modules:
+
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        vendors: {
+            test: /[\\/]node_modules[\\/]/,
+            minChunks: 1,
+            minSize: 0
+        }
+      },
+    },
+  },
+};
+
+cacheGroups 支持上述 minSice/minChunks/maxInitialRequest 等条件配置，此外还支持一些与分组逻辑强相关的
+属性，包括：
+
+ - test：接受正则表达式、函数及字符串，所有符合 test 判断的 Module 或 Chunk 都会被分到该组；
+ - type：接受正则表达式、函数及字符串，与 test 类似均用于筛选分组命中的模块，区别是它判断的依据是文件类型
+         而不是文件名，例如 type = 'json' 会命中所有 JSON 文件；
+ - idHint：字符串型，用于设置 Chunk ID，它还会被追加到最终产物文件名中，例如 idHint = 'vendors' 时，输
+         出产物文件名形如 vendors-xxx-xxx.js ；
+ - priority：数字型，用于设置该分组的优先级，若模块命中多个缓存组，则优先被分到 priority 更大的组。
+
+-------------------------------------------------------------------------
+经过以上的优化教程，以我的简历为例，打包时间可以从原先的18秒左右，降到900多毫秒
+

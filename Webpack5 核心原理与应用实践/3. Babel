@@ -1,0 +1,200 @@
+Babel
+ es6版本补充了大量提升Javascript开发效率的新特性，包括class关键字，块级作用域ES Module方案
+ 代理域反射等使得js可以真正的被用来编写大型的应用用程序。
+ 但是这些特性在浏览器端或者node端都存在各种兼容性问题，我们需要使用Babel开进行转译。
+
+
+
+Babel 是一个开源 JavaScript 转编译器，它能将高版本 —— 如 ES6 代码等价转译为向后兼容，
+能直接在旧版 JavaScript 引擎运行的低版本代码，例如：
+
+// 使用 Babel 转译前
+arr.map(item => item + 1)
+
+// 转译后
+arr.map(function (item){
+  return item + 1;
+})
+
+
+在线的babel:
+https://babeljs.io/repl 
+
+
+
+webpack的话，只需要使用babel-loader即可接入babel转译功能
+
+
+
+module.exports = {
+  /* ... */
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: ['babel-loader'],
+      },
+    ],
+  },
+};
+
+
+ - module 属性声明模块处理规则
+ - rules 配置子属性用于过滤什么样的文件，然后被什么样的loader处理
+
+test: /\.js$/：用于声明该规则的过滤条件，只有路径名命中该正则的文件才会应用这条规则，示例中的 /\.js$/ 表示对所有 .js 后缀的文件生效
+use：用于声明这条规则的 Loader 处理器序列，所有命中该规则的文件都会被传入 Loader 序列做转译处理
+
+Babel可以使用.babelrc文件或者rule.option属性配置Babel功能逻辑，例如：
+
+module.exports = {
+  /* ... */
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: [
+          {
+            loader: 'babel-loader',
+            options: {
+              presets: ['@babel/preset-env'],
+            },
+          },
+        ],
+      },
+    ],
+  },
+};
+
+preset是什么？
+Preset是babel预设集，可以使用预设集将一系列配置打包成一个预设环境，这样一来可以简化配置
+社区里已经提供了大量的预设集，例如：
+ babel-preset-react:包含了react的常用插件的规则集合，支持preset-flow,syntax-jsx,transform-resct-jsx等。
+ @babel/preset-typescript:用于转译Typescript代码的规则集
+ @babel/preset-flow:用于转译Flow代码的规则集.
+
+ babel 还有大量需要学习的地方，这是babel的官方文档:
+ https://babeljs.io/docs/en/ 
+
+
+使用Typescript
+---------------------------------------------------------------------------------
+为了解决js的一些痛点一些有问题的设计，社区推出了一系列js的超集:typescript,coffescript,flow
+
+其中,typescript借鉴了C#语言，在js上提供了一系列类型约束:
+
+
+webpack接入ts的方法:
+可以使用 ts-loader、awesome-ts-loader、 babel-loader
+但是一般使用ts-loader就好了
+
+1.安装依赖
+npm i -D typescript ts-loader
+
+2.配置 Webpack
+
+const path = require('path');
+
+module.exports = {
+  /* xxx */
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        use: 'ts-loader'
+      },
+    ],
+  },
+  resolve: {
+    //这里的意思是可以改善编码效率，当引用特定类型文件时只需要写文件名就好了
+    //不需要写后缀
+    extensions: ['.ts', '.js'],
+  }
+};
+
+如果项目中已经用了babel就不要用tsloader了，可以使用@babel/preset-typescript来配置ts
+
+1.安装依赖
+npm i -D @babel/preset-typescript
+1.配置 Webpack
+// 预先安装 @babel/preset-env
+// npm i -D @babel/preset-env
+module.exports = {
+  /* ... */
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: [
+          {
+            loader: 'babel-loader',
+            options: {
+              presets: ['@babel/preset-typescript'],
+            },
+          },
+        ],
+      },
+    ],
+  },
+};
+
+@babel/preset-typescript 只是哟景来做代码检查
+并未做ts-loader的类型检查
+
+ESLint
+--------------------------------------------------------------------
+javascript被设计成一种高灵活度弱类型脚本语言，但是一旦使用了typescript
+就需要用到一些手段帮助你在开发过程中纠错。
+
+ESLint是一种扩展性极佳的js代码风格检查工具，它可以将一些违反庚哥编写的代码转换成符合风格的代码，
+例如下面的示例:
+
+
+
+
+
+源码
+const foo ='foo';
+
+let  bar='bar';
+console.log(foo,bar)
+
+
+ESLint 修复后
+const foo = 'foo'
+
+const bar = 'bar'
+
+
+
+console.log(foo, bar)
+ESLint 配置：
+module.exports = {
+
+    "extends": "standard"
+
+}
+
+
+除了常规的代码检查之外，还可以适当地使用EsLint插件，配置集实现更丰富的检查，格式化功能。
+这里推荐几种使用效率较高第三方扩展，建议读者跟进学习。
+
+ - eslint-config-airbnb：Airbnb 提供的代码风格规则集，算得上 ESLint 生态第一个成名的规则集合
+ - eslint-config-standard：Standard.js 代码风格规则集，史上最便捷的统一代码风格的方式
+ - eslint-plugin-vue：实现对 Vue SFC 文件的代码风格检查
+ - eslint-plugin-react：实现对 React 代码风格检查
+ - @typescript-eslint/eslint-plugin：实现对 TypeScript 代码风格检查
+ - eslint-plugin-sonarjs：基于 Sonar 的代码质量检查工具，提供圈复杂度、代码重复率等检测功能
+
+
+ 综合示例
+ ----------------------------------------------------------------------------
+ 最后我们再串联以上三种工具，构建一套完整的javascript应用开发环境
+
+
+ 总结
+ ----------------------------------------------------------------------------
+  - Babel 提供语言转译能力
+  - Typescript 提供类型检查能力
+  - ESLint 提供风格检查能力，能在多人协作的时候保持代码的一致性
+

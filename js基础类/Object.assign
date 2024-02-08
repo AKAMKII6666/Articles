@@ -1,0 +1,97 @@
+https://blog.csdn.net/guxin_duyin/article/details/88916106
+
+一、Object.assign是什么？
+
+      首先了解下Object.assign()是什么。我们先看看ES6官方文档是怎么介绍的？
+
+      Object.assign() 方法用于将所有可枚举属性的值从一个或多个源对象复制到目标对象。它将返回目标对象。
+
+      简单来说，就是Object.assign()是对象的静态方法，可以用来复制对象的可枚举属性到目标对象，利用这个特性可以实现对象属性的合并。
+
+二、用法：
+
+      Object.assign(target, ...sources)
+
+  参数：target--->目标对象
+
+      source--->源对象
+
+  返回值：target，即目标对象
+
+三、使用示例：
+
+1、目标对象和源对象无重名属性
+
+var target={name:'guxin',age:18};
+var source={state:'single'}
+var result=Object.assign(target,source);
+console.log(target,target==result);
+结果如图：
+
+
+
+我们可以看到source上的state属性合并到了target对象上。如果只是想将两个或多个对象的属性合并到一起，不改变原有对象的属性，可以用一个空的对象作为target对象。像下面这样：
+
+var result=Object.assign({},target,source);
+2、目标对象和源对象有重名属性
+
+上面的示例目标对象和源对象是没有重名属性的，那么如果他们有重名属性又会怎样呢？是后面的属性覆盖前面的还是前面的属性覆盖后面的呢？我们接下来看下一个例子：
+
+var target={name:'guxin',age:18}
+var source={state:'signle',age:22}
+var result=Object.assign(target,source)
+console.log(target)
+我们来看下运行结果：
+
+
+
+可以看到如果有同名属性的话，后面的属性值会覆盖前面的属性值。
+
+3、有多个源对象
+
+前面的示例都是只有一个源对象，那么如果有多个源对象情况会不会不同呢？我们继续看下面的例子：
+
+        var target={name:'guxin',age:18}
+        var source1={state:'signle',age:22}
+        var source2={mood:'happy',age:25}
+        var result=Object.assign(target,source1,source2)
+        console.log(target)
+我们来看下运行结果：
+
+
+
+可以看到有多个源对象情况也是和一个源对象一样的。没有同名的属性会直接复制到目标对象上，同名的属性后面的属性值会覆盖前面的同名属性值。
+
+四、注意事项：
+
+1、Object.assign 方法只会拷贝源对象自身的并且可枚举的属性到目标对象，继承属性和不可枚举属性是不能拷贝的。
+
+2、针对深拷贝，需要使用其他办法，因为 Object.assign()拷贝的是属性值。假如源对象的属性值是一个对象的引用，那么它也只指向那个引用。
+
+3、目标对象自身也会改变
+
+4、异常会打断后续拷贝任务
+
+五、兼容性
+
+目前IE浏览器不兼容Object.assign()，如果需要兼容IE的话最好不要直接使用这个方法。
+
+六、与$.extend()的比较
+
+我们通过一个简单的示例来比较两者有什么不同，
+
+        var target={name:'guxin',age:18}
+        var source1={state:'signle',age:22}
+        var source2={mood:'happy',age:25}
+        var result=Object.assign(target,source1,source2)
+        console.log(target,'assign')
+        var targetObj={name:'guxin',age:18}
+        var sourceObj1={state:'signle',age:22}
+        var sourceObj2={mood:'happy',age:25}
+        var result=$.extend(targetObj,sourceObj1,sourceObj2)
+        console.log(targetObj,'extend')
+最终运行结果如下：
+
+
+
+可以看到两者得到的结果是一样的。所以，我认为这两个方法，除了兼容性应该是一样的。

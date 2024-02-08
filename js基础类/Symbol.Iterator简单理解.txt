@@ -1,0 +1,475 @@
+
+1.symbol是什么？
+2.Itertor是什么?
+3.symbol的内置符号symbol.Iterator,有什么用?
+4.为什么会出现for...of
+5.for...of怎么用 
+
+
+首先symblol是es6新增的类型，他是一个基本类型.
+在叙述symbol之前，推出一个概念，"以操作目标为程序本身的行为特性的编程，我们成为元编程"
+我们已知symbol是es6新增类型，按照逻辑推演:作为新增的类型,symbol一定是为了弥补之前的不足，
+所以才出现的，但是真的是这样的吗？
+
+首先说说它们的特别之处：
+1.symbol属性值对应的值是唯一的，这解决了命名冲突的问题，类似id的作用。
+2.symbol值不能与其他数据行计算，包括与字符串拼接。
+3.for/in,for/of遍历时不会遍历到symbol属性 
+
+这样看来，好像是不是没什么特别的，最多也就是弥补了命名冲突的问题。
+
+下面退出第二个问题：
+Iterator是什么？
+Iterator是一个遍历器的接口，是部署在数据结构上的，很多数据结构原生具备Iterator接口，
+这就意味着，我们不需要任何处理就可以使用for/of了，拥有symbol.Iterator属性返回的对象，
+都会在使用for/of时被当做Iterator接口，当这个对象符合Iterator接口的标准时，for/of就
+可以完成任务，不符和就报错。
+
+刨除这个问题，我们知道Symbol可以作为属性值存在。并且它具有唯一的特性，举个例子：
+直接let s = Symbol();
+测试s就是Symbol类型了。怎么说它是唯一的呢?
+let s = Symbol(); 
+let ss = Symbol(); 
+s == ss ; 结果是false；
+
+或者
+let s = Symbol('a');
+let ss = Symbol('a'); 
+s == ss ; 结果是false
+
+有人会好奇Symbol('a')里面的参数a又是怎么回事呢？字符串a表示一种修饰，对你当前创建的Symbol类型的
+一种修饰，作为区分使用，否则当你创建多个Symbol数据时，容易混淆。
+
+现在我们回过头去说Iterator是Symbol的内置符号，而字符串a是自定义的符号。
+
+
+symbol的内置符号symbol.Iterator，有什么用？
+
+这个符号可以是任意对象上的一个专门属性，语言机制会自动的在这个属性上寻找一个方法，这个方法会构造
+一个迭代器来迭代这个对象的值，这个方法就是next方法，展开和for..of会自动使用它，我们可以自定义
+Symbol.Iterator属性为任意对象值定义自己的迭代器逻辑，它将覆盖默认的迭代器。相当于是定义了一种元编程
+行为，提供给Javascript其它部分（也就是运算符和循环结构）在处理定义的对象使用。
+
+- 在js中，迭代器对象实现了可迭代协议，迭代器对象由Symbol.Iterator属性的值返回。
+- Symbol.iterator属性的值是一个函数，它返回一个迭代器对象。
+- 迭代器指的是拥有next方法的对象。
+- 该next方法必须返回一个带有value和done的对象。
+
+为什么会出现for...of
+为了理解条件语句，我们曾想象javascript解释器在源代码中会经过不同的路径。而循环语句则是把这些
+路径弯曲又折回起点，以重复执行代码中的某部分。
+
+es6定义了一个新循环语句:for/of。这种新循环虽然使用for关键字，但它们是完全不宜同的两种循环，你说和
+for...in想不想？为什么？
+for/of循环是专门用于可迭代对象的，什么是可迭代对象呢？
+
+我们前文提到具有Symbol.iterator属性的对象就是可以迭代的。而这个对象就是可迭代对象。
+对象本身默认是不可迭代的。运行时尝试对常规对象使用for/of会抛出typeError
+
+
+
+----------------------------------------------------------------
+迭代器是什么
+
+通过迭代器工厂函数返回的一个带有next函数的对象，
+并且这个next在循环中每次调用会返回value和done属性的值，
+通过done来判断迭代是否停止，value就是我们需要的数据，这样的一个对象，
+就是迭代器。
+
+迭代器就是指可以从一个数据集中按照移动顺序，不断取出数据的过程。
+那么迭代器和遍历有什么区别呢？
+
+- 迭代器强调依次取数据的过程，不保证把所有的数据都取完。
+- 遍历强调的是要把所有的数据依次并一次性全部取出。
+
+在Javascript中，迭代器是能调用next方法实现迭代的一个对象，该方法返回一个具有两个属性的对象。
+- value:可迭代对象的下一个值
+- done:表示已经全部取出数据了。false表示还有数据，true表示后面已经没有数据了。
+
+迭代器的简单使用
+通过可迭代对象中的迭代器工厂函数 Symbol.iterator来生成迭代器。
+
+//数组可以创建迭代器
+const arr = [1,2,3]
+
+//创建迭代器
+const iter1 = arr[Symble.iterator]();
+
+//开始迭代
+iter1.next(); //1
+iter1.next(); //2
+iter1.next(); //3
+
+//map因为也实现了Iterator接口，也可以创建迭代器
+const mymap = new Map();
+mymap.set("aaa",'1');
+mymap.set("bbb",2);
+
+const iterMap = mymap[Symbol.iterator]() //通过迭代器工厂函数 Symbol.iterator来生成迭代器。
+console.log(iterMap);
+iterMap.next();
+iterMap.next();
+iterMap.next(); //  这里返回值的value为undefined done为true  因为迭代到这里已经没东西可迭代了。
+
+如果迭代对象，例如mymap被修改了，迭代器得到的结果也会是修改后的.
+
+自定义迭代器
+从上文就可得知，可以通过迭代器工厂函数Symbol.iterator来生成迭代器，所以我们需要实现一个迭代器工厂函数，
+然后迭代器可以调用next方法，所以还需要实现一个next方法:
+
+这里我通过实现一个map对象来演示自定义迭代器:
+class myMap{
+    items = [];
+    constructor(){
+
+    }
+
+    //获取方法
+    get(_key){
+        for(var i of this.items){
+            if(i[0] === _key){
+                return i;
+            }
+        }
+    }
+
+    //设置方法
+    set(_key,_value){
+        let result = [_key,_value]
+        this.items.push(result);
+        return result;
+    }
+
+    //实现迭代工厂函数
+    [Symbol.iterator](){
+        let itemsTemp =  this.items;
+        let index = -1;
+
+        //创建迭代器并返回
+        let it = {
+            //实现next方法
+            next:function(){
+                let result = {
+                    value:undefined,
+                    done:true
+                };
+                
+                if(index + 1 >itemsTemp.length -1){
+                    
+                }else{
+                    index += 1;
+                    result.value = itemsTemp[index];
+                    result.done = false;
+                }
+
+                return result;
+            }
+        }
+
+        //返回迭代器
+        return it;
+    }
+}
+
+我的理解：
+遍历是指一个循环，一次性转完，转完停止，中间的处理过程必须放置在循环体内
+迭代器的话，可以不用受限于循环体，可以把需要处理的元素放进去，然后通
+过程序本身的处理流程在需要的时候依次取出需要处理的项目。
+
+
+
+
+----------------------------------------------------------------
+js的map对象 相等于c#里的字典 dirctionary
+
+1.创建map对象
+let mm  = new Map();
+
+2.将键值对放入map对象
+map.set("key",value);
+map.set("key1",value1);
+map.set("key2",value2);
+
+3.根据key获取map值
+map.get("key") // value1
+
+4.删除map指定对象
+delete map[key];
+或者
+map.delete(key);
+
+5.遍历map
+map.forEach(function(_value){
+    console.log(_value); 
+});
+
+6.使用for of
+for(i of mm){ 
+    console.log(i) //因为Map实现了Iterator接口，所以可以进行for  of迭代
+                   //依次输出[key,value] 输出结果为数组对象
+
+}
+
+
+----------------------------------------------------------------
+for of 是什么：
+
+JS for of 循环是ECMAScript6中的一种循环方式，与for in 循环类似，也是普通for循环的一种变体。使用
+for of循环可以轻松地遍历数组或者其它可遍历的对象，例如字符串，对象等。
+
+let  arr = [a,b,c,d,e,f]
+for（let i of arr）{
+    console.log(i); // a b c d e f  依次输出 
+}
+
+for(let i of "Hello  World"){
+    console.log(i); // H e l l o     W o r l d 依次输出 
+}
+
+var obj = {"name": "Clark", "surname": "Kent", "age": "36"};
+for(var i of obj){  
+    console.log(i)  // 这样会报错，因为obj类型没有实现Iterator接口,没有实现Iterator接口的类型无法使用for..of
+}
+
+object类型没有实现Iterator只能使用for in
+
+
+----------------------------------------------------------------
+学习jsEs6中Symbol
+一.创建Symbol
+创建Symbol有两种方式
+1. 通过Symbol()来创建一个Symbol值,需要注意Symbol()不是构造函数，时候用new关键字创建会出问题
+
+const  s1 = Symbol()
+console.log("s1",s1) //Symbol()
+
+symbol的最大特点是其表示的值是独一无二的
+
+const s1 = Symbol();
+const s2 = Symbol();
+//这里使用值对比
+console.log(s1 == s2); ///false
+
+因为Symbol()是一个基础数据类型，返回的值并不是对象 
+
+应用
+可以用来定义对象的  唯一属性名，加入一个已存在的属性
+const  obj  ={
+    name:"小明"
+}
+
+obj[Symbol('only')] = "only"
+console.log(obj) // {name:"小明"，Symbol(only):"only"}
+obj[Symbol('name')] = "小刚"
+console.log(obj) // {name:"小明"，Symbol(only):"only",Symbol(name):"小刚"}
+
+我的理解，就是在创建多个数据值一模一样的对象的时候，可以用Symbol来区分各个对象的区别，避免混淆
+
+
+通过Symbol.for()创建一个Symbol值
+与Symbol()不同的是，使用Symbol.for()的时候，会首先在全局搜索是否存在以该参数为名称的Symbol值，
+如果有则返回该Symbol,没有就新建一个
+const s1 = Symbol.for("onlyOne");
+//这里就直接使用了s1的值
+const s2 = Symbol.for("onlyOne");
+//因为是基础类型，无论是双等号还是三等号都为true
+//因为对比的是值，而不是引用地址
+console.log(s1 === s2)
+console.log(s1 == s2)
+
+我的理解：
+就是以前在写一个全局且为空时赋值，不为空时不可覆盖配置的时候，使用的是window.s1,然后希望在下次设置window.s1的时候
+不要去覆盖，有的话就使用，没有的话才创建。
+那么现在可以使用Symbol.for来实现这样的特性，且跨平台。可以nodejs使用也可以浏览器上使用
+
+但是需要注意的是，由于Symbol没有登记机制，所以通过Symbol()创建的值，通过Symbol.for是找不到的
+const s7 = Symbol("aaa");
+const s8 = Symbol.for("aaa");
+console.log(s7 == s8)//false
+因为symbol.for()找不到key为aaa的值,所以会在全局创建一个aaa的值，并登记在Symbol表中
+
+我的理解:
+Symbol是为唯一性准备的，就是为了辨别对象或者值的唯一性设计的，所以为了不和Symbol.for()混淆
+才一定要和Symbol.for()的存储空间分开
+
+symbol.keyFor()
+返回Symbol值的key
+
+与Symbol.for()一样，Symbol.keyFor()是在登记表中查找该Symbol值是否存在，存在则返回该值的key,不存在则返回undefined
+console.log(symbol.keyFor(Symbol.for('aaa')))  // 返回 'aaa'  这里直接取出Symbol.for('aaa')中的'aaa'
+console.log(symbol.keyFor(Symbol('aaa')))  //不存在,返回undefined 而且keyFor只能取Symbol.for的值
+
+
+我的理解:
+这个symbol.keyFor就是用来获取Symbol.for('aaa')中里面'aaa'的值用的
+
+
+
+--------------------------------------------------------------------------
+
+Object.keys（）的详解和用法
+
+weixin_46663768
+
+于 2020-06-08 19:13:01 发布
+
+30621
+ 收藏 86
+文章标签： object javascript
+版权
+Object.keys（）的详解和用法
+在实际开发中，我们有时需要知道对象的所有属性;
+ES5 引入了Object.keys方法，成员是参数对象自身的（不含继承的）所有可遍历（ enumerable ）属性的键名。
+
+传入对象，返回属性名
+var data={a:1,b:2,c:9,d:4,e:5};
+    console.log(Object.keys(data));//["a", "b", "c", "d", "e"]
+    Object.keys(data).map((key,item)=>{
+        console.log(key,data[key]);//key=>属性名    data[key]=>属性值
+});
+1
+2
+3
+4
+5
+传入字符串，返回索引
+var str = 'ab1234';
+console.log(Object.keys(obj));  //[0,1,2,3,4,5]
+1
+2
+传入数组 返回索引
+var arr = ["a", "b", "c"];
+console.log(Object.keys(arr)); // console: ["0", "1", "2"]
+1
+2
+构造函数 返回空数组或者属性名
+function Pasta(name, age, gender) {
+      this.name = name;
+      this.age = age;
+      this.gender = gender;
+      this.toString = function () {
+            return (this.name + ", " + this.age + ", " + this.gender);
+    }
+}
+
+console.log(Object.keys(Pasta)); //console: []
+
+var spaghetti = new Pasta("Tom", 20, "male");
+console.log(Object.keys(spaghetti)); //console: ["name", "age", "gender", "toString"]
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+扩展
+Object.values()
+
+Object.values方法返回一个数组，成员是参数对象自身的（不含继承的）所有可遍历（ enumerable ）属性的键值。
+
+Object.entries()
+
+Object.entries方法返回一个数组，成员是参数对象自身的（不含继承的）所有可遍历（ enumerable ）属性的键值对数组。
+
+
+可能碰到的面试题
+-----------------------------------------
+symbol.Iterator是干啥的？
+symbol.Iterator 是一个浏览器提供的接口
+实现了这个接口的对象或者类型都可以作为迭代器使用
+
+
+迭代器是什么？
+是指一个对象通过使用next方法迭代它的内容。
+
+简单聊聊对for of的看法
+for of的话，主要针对实现了迭代器的对象或者类型
+通过浏览器的编译器自动执行这个对象上面的迭代器
+
+
+
+迭代器是怎么创建的？
+迭代器通过迭代器工厂函数创建
+
+
+
+
+简单实现一下迭代器？
+这里我通过实现一个map对象来演示自定义迭代器:
+class myMap{
+    items = [];
+    constructor(){
+
+    }
+
+    //获取方法
+    get(_key){
+        for(var i of this.items){
+            if(i[0] === _key){
+                return i;
+            }
+        }
+    }
+
+    //设置方法
+    set(_key,_value){
+        let result = [_key,_value]
+        this.items.push(result);
+        return result;
+    }
+
+    //实现迭代工厂函数
+    [Symbol.iterator](){
+        let itemsTemp =  this.items;
+        let index = -1;
+
+        //创建迭代器并返回
+        let it = {
+            //实现next方法
+            next:function(){
+                let result = {
+                    value:undefined,
+                    done:true
+                };
+                
+                if(index + 1 >itemsTemp.length -1){
+                    
+                }else{
+                    index += 1;
+                    result.value = itemsTemp[index];
+                    result.done = false;
+                }
+
+                return result;
+            }
+        }
+
+        //返回迭代器
+        return it;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

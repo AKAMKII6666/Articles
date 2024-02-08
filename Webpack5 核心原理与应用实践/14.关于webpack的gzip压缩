@@ -1,0 +1,33 @@
+// vue.config.js
+const IS_PROD = ['prod', 'production'].includes(process.env.NODE_ENV)
+//gzip压缩
+const productionGzipExtensions = /\.(js|css|json|html)(\?.*)?$/i; //匹配格式
+const CompressionWebpackPlugin = require("compression-webpack-plugin"); 
+
+module.exports = {
+    configureWebpack: config => {
+        let plugins = []
+        if (IS_PROD) {
+            // prod添加gzip压缩
+            plugins.push(
+                new CompressionWebpackPlugin({
+                    filename: "[path].gz[query]",
+                    algorithm: "gzip",
+                    test: productionGzipExtensions,
+                    threshold: 10240,// 大于10kb的才被压缩
+                    minRatio: 0.8//压缩比例
+                })
+            );
+        }
+        config.plugins = [...config.plugins, ...plugins];
+    },
+}
+
+
+这里开启gzip还不行
+如果是nginx裸托管的站点服务，还要配置nginx:
+gzip_static on;
+gzip_http_version   1.1;
+gzip_proxied        expired no-cache no-store private auth;
+gzip_disable        "MSIE [1-6]\.";
+gzip_vary           on;

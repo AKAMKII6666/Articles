@@ -1,0 +1,237 @@
+辅助参考:
+https://developer.aliyun.com/article/916711
+loader到底是什么，我们可以自定义Loader吗？
+
+
+我们可以自定义loader
+
+例如定义一个loader
+
+
+module.exports = function(source, sourceMap?, data?) {
+  return source;
+};
+
+
+然后在我们的webpack配置里引入loader:
+const path = require("path");
+
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: [{ 
+          // 传入示例 Loader 的绝对路径
+          loader: path.resolve(__dirname, "../dist/index.js") 
+        }],
+      },
+    ],
+  },
+};
+
+
+需要注意的是Loader是文件处理工具，就是将webpack配置好各种类型的文件过滤器，然后识别到特定文件以后
+特定文件都会进入到某个“处理器”即loader中进行处理，再输出。
+ - 输入文件的字符串内容
+ - 输出处理好的文件的字符串内容
+
+Loader处理的一些简单思路:
+ - 简单来说webpack loader是一个从string到string的函数，输入的是字符串的代码，输出也是字符串的代码。
+
+ - 通常来说对于各种文件的处理loader已经都有很好的轮子了，我们自己来编写的loader通常是用来做代码处理的，
+
+ 也就是说在loader中拿到source之后，我们将其转换为AST树，然后在这个AST上进行一些修改，之后再将其转换为字
+ 符串代码之后进行返回。
+
+ - 从字符串到AST语法分析树是为了得到计算机容易识别的数据结构，在webpack中自带了一些工具，acorn是代码转AST
+ 的工具，estraverse是AST遍历工具，escodegen是转换AST到字符串代码的工具。
+
+ - 既然loader是字符串到字符串的，那么在代码转换为AST处理之后需要转为字符串，然后再传递到下一个loader，下一
+ 个loader可能又要进行相同的转换，这样还是比较耗费时间的，所以可以通过speed-measure-webpack-plugin进行速率
+ 打点，以及cache-loader来存储AST。
+
+ - loader-utils是在loader中常用的辅助类，常用的有urlToRequest绝对路径转webpack请求的相对路径，urlToRequest
+ 来获取配置loader时传递的参数。
+
+
+目前我们实现的loader都是同步loader
+--------------------------------------------------------------------------------
+什么是同步loader:
+同步loader指的是同步的返回转换后的内容。由于是在Node.js这样的单线程环境，所以转换过程会阻塞
+整个构建，构建缓慢，不适用于耗时较长的环境中。对于同步loader，主要有两种方法返回转换后的内容：
+return和this.callback()
+
+使用callback返回处理结果:
+this.callback(
+  err: Error | null,
+  content: string | Buffer,
+  sourceMap?: SourceMap,
+  meta?: any
+);
+（1）第一个参数为无法转换原内容，Webpack会返回一个Error。
+（2）第二个参数即为经过转换后的内容(为输出的内容)。
+（3）指与编译后代码所映射的源代码，便于调试。为了在此loader中获取该sourceMap，则需要在创建的webpack做一下配置
+（以js为例，babel-loader会将基础ES6语法进行转换为ES5，通过devtool可以开启source-map）
+
+module.exports = {
+    // ...
+    module: {
+        rules: [
+            {
+                test: /\.js$/,
+                use: [
+                    'test-loader',// 该loader即为自己构建的loader
+                    {
+                        loader: 'babel-loader',
+                        options: {
+                            presets: [
+                                '@babel/preset-env'
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    devtool: 'eval-source-map',
+}
+（4）可以是任何东西，输出该参数，即可在下一个loader中获取并使用，例如通过各loader之间共享通用的AST，加速编译时间。
+
+
+-----------------------------------------------------------------------------
+什么是异步loader:
+同步loader只适合于计算量小，速度快的场景，但是对于计量量大、耗时比较长的场景（例如网络请求），使用同步loader会阻塞
+整个构建过程，导致构建速度变慢，采用异步loader即可避免该问题。对于异步loader，使用this.async()可以获取到callback
+函数，该函数参数和同步loader中this.callback参数一致。
+
+module.exports = function(content, map, meta) {
+    // 获取callback函数
+    const callback = this.async();
+    // 用setTimeout模拟该异步过程
+    setTimeout(() => {
+        // 处理后获得的结果output
+    const output = dealOperation(source);
+        callback(null, output, map, meta);
+    }, 100)
+}
+
+需要用this.async来获得异步loader的返回结果回调函数
+
+-------------------------------------------------------------------------------
+Loader 可能碰到的文件类型:
+ - utf-8的代码文件，也就是文本文件
+ - 图片视频等二进制文件
+
+所以loader也可以处理raw(二进制)类型的文件：
+ - 这样的loader我们称之为raw - Loader
+
+// raw-test-loader.js
+module.exports = function(source, map, meta) {
+    // 处理输入的资源
+    const output = dealOperation(source);//伪代码
+    return output;
+}
+// 通过该属性告诉webpack该loader是否需要返回二进制数据
+module.exports.raw = true;
+
+通过配置module.exports.raw = true 来告知webpack是否要处理raw类型的文件
+
+--------------------------------------------------------------------------------
+获得你自己定义的loader选项
+对于webpack配置中，loader往往有一些options参数，对于自己编写的loader中为了获取options参数，
+官方推荐使用loader-utils包，利用该包即可获取options中参数，然后在loader中进行处理。
+
+const loaderUtils = require('loader-utils');
+module.exports = function (source, map, meta){
+    // 获取options
+    const options = loaderUtils.getOptions(this);
+    const output = dealOperation(source);//伪代码
+    
+    return output;
+}
+
+---------------------------------------------------------------------------------
+ 控制是否需要进行缓存:
+
+module.exports = function(source, map, meta) {
+    // 关闭缓存
+    this.cacheable(false);
+    return source;
+}
+
+
+---------------------------------------------------------------------------------
+loader中的pitch函数是做什么的，怎么用?
+Pitch 翻译成中文是_抛、球场、力度、事物最高点_等
+
+pitch函数和webpack的loader调用逻辑强相关。
+
+webpack在调用loader的时候，存在“链式调用”的情况
+
+链式调用是这样的:
+例如现在有（从右到左）4个loader:
+
+loader4  loader3  loader2  loader1
+
+那么webpack调用loader会这么调用
+
+webpack aaa/bbb/ccc/x.json → loader4.pitch() → loader3.pitch() → loader2.pitch() → loader1.pitch()
+                                                                                        ↓
+                                                            webpack取出这个aaa/bbb/ccc/x.json的文件内容
+                                                                                        ↓
+webpackd 得到返回结果       ← loader4()      ←  loader3()       ← loader2()       ← loader1()
+
+webpack会在真正执行loader之前先从左到右执行一遍picth(),然后再从右到左执行loader本身()
+
+pitch的写法:
+
+module.exports = function(source, map, meta) {
+    return source;
+}
+
+module.exports.pitch = function(remainingRequest, previousRequest, data){
+
+}
+
+ - remainingRequest : 当前 loader 之后的资源请求字符串；
+ - previousRequest : 在执行当前 loader 之前经历过的 loader 列表；
+ - data : 与 Loader 函数的 data 相同，用于传递需要在 Loader 传播的信息。
+
+需要注意的是，remainingRequest只会给出文件的本地绝对路径。
+
+如果在pitch中return了，那么将会熔断这个调用链:
+
+
+webpack aaa/bbb/ccc/x.json → loader4.pitch() → loader3.pitch() 
+                                                     ↓
+                                                ↓
+                                            ↓                                                                           
+webpackd 得到返回结果       ← loader4()      
+
+例如loader3的pitch得到了一个返回值，那么它将会使用这个返回值反向传送给loader4的本体进行处理。
+
+那么这个是用来做什么的呢？
+例如在你的loader处理链条上，一般都是把一个语言由高级别逐步处理成低级别，但是有可能你处理的文件
+本身就是低级别文件，为了兼容这种情况，pitch可以用来逐步检查当前处理的文件，如果检查到当前文件
+并不需要那么高级别的处理方式，便可以不再往下，而是从当前的pitch点，直接处理，并在loader链上往回
+处理，直到回到webpack层。
+
+所以它的最关键功能就是阻断!
+需要注意的是，如果我们在loader里面将引用结果改为inline的loader执行方式，当以上流程处理结束后，
+webpack将会根据inline的loader命令再次执行一遍loader链:
+var content = require('!!css-loader!less-loader!./xxx.less');
+
+----------------------------------------------------------------------------------
+补充知识点:
+inline Loader的字符释义
+ - “!”禁用已经配置的所有普通(normal)Loader
+ - “!!” 前缀，将禁用所有已配置的 loader（preLoader, loader, postLoader）
+ - “-!” 将禁用所有已配置的 preLoader 和 loader，但是不禁用 postLoaders
+
+----------------------------------------------------------------------------------
+总结
+Loader主要根据webpack的module配置来过滤到相应的文件，然后待匹配到相应文件的时候再进行文件处理的一种
+机制，这种机制是根植于webpack的loader处理链上的，虽然自由度不高，但是可以快速方便地开发出我们想要处理
+的文件的对应处理方法。

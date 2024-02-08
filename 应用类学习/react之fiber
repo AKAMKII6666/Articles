@@ -1,0 +1,496 @@
+https://mp.weixin.qq.com/s?__biz=Mzg3OTYzMDkzMg==&mid=2247488140&idx=1&sn=8740d01bd4ebfcd676ec0d40936345b6&chksm=cf00ddb7f87754a1b124890c645b8f73c9dfcdd4b68d7983900815bfa47159e856e1cfd1c539&scene=178&cur_album_id=2235430201809928196#rd
+React 16之前和之后最大的区别是引入了fiber.又基于fiber实现了hooks.
+
+首先，我们用vdom来描述界面结构:
+{
+  "type": "ul",
+  "props": {
+      "className": "list",
+      "children": [
+          {
+              "type": "li",
+              "props": {
+                  "className": "item",
+                  "children": [
+                    "aa"
+                  ]
+              }
+          },
+          {
+            "type": "li",
+            "props": {
+                "className": "item",
+                "children": [
+                  "bb"
+                ]
+            }
+          }
+        ]
+   }
+}
+
+这很明显就是一个ul,li的结构，但是我们不会手写vdom,而是使用jsx+babel生成:
+
+const data = {
+    item1: 'bb',
+    item2: 'cc'
+}
+
+const jsx =  <ul className="list">
+    <li className="item" style={{ background: 'blue', color: 'pink' }} onClick={() => alert(2)}>aa</li>
+    <li className="item">{data.item1}<i>xxx</i></li>
+    <li className="item">{data.item2}</li>
+</ul>;
+
+Jsx使用babel编译，我们配置一下.babelrc.js：
+module.exports = {
+    presets: [
+        [
+            '@babel/preset-react',
+            {
+                pragma: 'Dong.createElement'
+            }
+        ]
+    ]
+}
+
+然后用babel编译它:
+
+babel index.js -d ./dist
+
+编译结果是这样的:
+
+const data = {
+  item1: 'bb',
+  item2: 'cc'
+};
+const jsx = Dong.createElement("ul", 
+{
+  className: "list"
+}, 
+Dong.createElement("li", {
+  className: "item",
+  style: {
+    background: 'blue',
+    color: 'pink'
+  },
+  onClick: () => alert(2)
+}, "aa"),
+ Dong.createElement("li", {
+  className: "item"
+}, 
+data.item1, 
+Dong.createElement("i", null, "xxx")), 
+Dong.createElement("li", {
+  className: "item"
+}, data.item2));
+
+
+
+这里的createElement就叫做render Function,它的执行结果是vDom
+
+为什么不直接把jsx编译成vdom呢？
+
+因为render function可以执行动态逻辑，我们可以加入state,props,也可以包装一下实现组件:
+
+        state,props
+jsx → render Function → vdom
+
+这样一来我们只要实现Dong.createElement就能拿到vdom了
+createElement就是返回types,props,children的对象。
+我们把children也放在props里面，并且文本节点单独创建:
+
+function createElement(type, props, ...children) {
+    return {
+        type,
+        props: {
+            ...props,
+            children: children.map(child =>
+                typeof child === "object"
+                ? child
+                : createTextElement(child)
+            ),
+        }
+    }
+}
+
+function createTextElement(text) {
+    return {
+        type: "TEXT_ELEMENT",
+        props: {
+            nodeValue: text,
+            children: [],
+        },
+    }
+}
+
+const Dong = {
+    createElement
+}
+
+
+这样执行出来的结果就是vdom了:
+{
+    "type": "ul", 
+    "props": {
+        "className": "list", 
+        "children": [
+            {
+                "type": "li", 
+                "props": {
+                    "className": "item", 
+                    "style": {
+                        "background": "blue", 
+                        "color": "pink"
+                    }, 
+                    "children": [
+                        {
+                            "type": "TEXT_ELEMENT", 
+                            "props": {
+                                "nodeValue": "aa", 
+                                "children": [ ]
+                            }
+                        }
+                    ]
+                }
+            }, 
+            {
+                "type": "li", 
+                "props": {
+                    "className": "item", 
+                    "children": [
+                        {
+                            "type": "TEXT_ELEMENT", 
+                            "props": {
+                                "nodeValue": "bb", 
+                                "children": [ ]
+                            }
+                        }, 
+                        {
+                            "type": "i", 
+                            "props": {
+                                "children": [
+                                    {
+                                        "type": "TEXT_ELEMENT", 
+                                        "props": {
+                                            "nodeValue": "xxx", 
+                                            "children": [ ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }, 
+            {
+                "type": "li", 
+                "props": {
+                    "className": "item", 
+                    "children": [
+                        {
+                            "type": "TEXT_ELEMENT", 
+                            "props": {
+                                "nodeValue": "cc", 
+                                "children": [ ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+
+
+接下来递归这棵树（vdom）不就是渲染了么？也就是逐级通过document.createElement进行元素创建
+根据每个节点进行属性设置，绑定事件，添加样式，事件监听等等。
+
+但是如果直接通过递归进行的话，那就是react16之前的算法了
+但是react16之后引入了fiber,多增加了一道处理，就是在这里做了改变，它不再是直接拿vdom去扔给浏览器
+创建dom树了，而是先转换成fiber
+
+本来vdom里通过children关联父子关系，而fiber里面则是通过child关联第一个子节点，然后通过sibling(兄妹)
+串联起下一个，所有的子节点都可以return到父节点。
+
+这样就不是把一颗vdom树，转换成fiber链表了吗?
+
+然后渲染fiber就可以了，和渲染vdom的时候一样。
+为什么费这么多事转换成另一种结构再进行渲染呢》这不是多此一举吗？
+
+那肯定不是，fiber架构的意义在这里:
+之前我们是通过递归渲染vdom的，然后diff下来做patch的渲染：
+以前的渲染和Diff是递归进行的。
+
+现在变成了fiber.
+
+先把vdom转换成fiber,也就是reconcile,因为fiber是链表，可以打断，用schedule来空闲时调度（requestIdleCallback）
+就行了。
+*reconcile就是指将vdom转换成fiber
+
+这样，之前只有vdom的render和patch,现在却变成了vdom转fiber的reconcile,空闲调度reconcile的scdule,最后把
+fiber渲染的commit三个阶段。
+*patch就是指把diff的操作更新在界面上
+
+意义就在于这个可打断上。因为递归渲染vdom可能耗时很多，js计算量大了会祖泽渲染，而fiber是可打断的，就不会
+阻塞渲染，而且还会在这个过程中把需要用到的dom创建好，做好diff再来确定是增是删还是改。
+
+dom有了，增删改也知道了咋做了，一次性commit不就很快了吗
+
+这就是fiber架构的意义。
+
+
+分别实现 schedule、reconcile、commit：
+
+schedule 就是空闲调度
+
+function workLoop(deadline) {
+    // do xxx
+    requestIdleCallback(workLoop);
+}
+
+requestIdleCallback(workLoop);
+
+实用浏览器自带的requestIdleCallback就可以实现空闲时间做一些事情，例如reqct在这里就利用浏览器的帧空闲时间
+做reconcile,或者叫做reconcile loop.
+
+用两个变量来记录当前处理到的fiber节点，以及根fiber节点:
+let nextFiberReconcileWork = null;
+let wipRoot = null;
+
+它做的事情就是循环处理完所有的reconcile:
+let shouldYield = false;
+while (nextFiberReconcileWork && !shouldYield) {
+    nextFiberReconcileWork = performNextWork(
+        nextFiberReconcileWork
+    );
+    shouldYield = deadline.timeRemaining() < 1;
+}
+
+如果全部都转完了，那就 commit：
+
+所以，schedule 的代码就是这样的：
+
+let nextFiberReconcileWork = null;
+let wipRoot = null;
+  
+function workLoop(deadline) {
+    let shouldYield = false;
+    while (nextFiberReconcileWork && !shouldYield) {
+        nextFiberReconcileWork = performNextWork(
+            nextFiberReconcileWork
+        );
+        shouldYield = deadline.timeRemaining() < 1;
+    }
+
+    if (!nextFiberReconcileWork) {
+        commitRoot();
+    }
+
+    requestIdleCallback(workLoop);
+}
+
+requestIdleCallback(workLoop);
+
+
+每次执行的 performNextWork 就是 reconcile：
+
+function performNextWork(fiber) {
+
+    reconcile(fiber);
+
+    if (fiber.child) {
+        return fiber.child;
+    }
+    let nextFiber = fiber;
+    while (nextFiber) {
+        if (nextFiber.sibling) {
+            return nextFiber.sibling;
+        }
+        nextFiber = nextFiber.return;
+    }
+}
+
+这就是 schedule 做的事情：schedule 就是通过空闲调度每个 fiber 节点的
+ reconcile（vdom 转 fiber），全部 reconcile 完了就执行 commit。
+
+ *这里没有实现reconcile() 其实reconcile就是将一个fiber节点传进去，然后组织这个节点的真实dom节点
+
+接下来实现 reconcile：
+
+function render(element, container) {
+    wipRoot = {
+        dom: container,
+        props: {
+            children: [element],
+        }
+    }
+    nextFiberReconcileWork = wipRoot
+}
+
+reconcile 是 vdom 转 fiber，但还会做两件事：一个是提前创建对应的 dom 节点，一个是做 diff，确定是增、
+删还是改。
+
+reconcile 的实现是这样的：
+
+function reconcile(fiber) {
+    if (!fiber.dom) {
+        fiber.dom = createDom(fiber)
+    }
+    reconcileChildren(fiber, fiber.props.children)
+}
+
+fiber.props.children 就是 vdom 的子节点，这里的 reconcileChildren 就是把之前的 vdom 转成 child、
+sibling、return 这样串联起来的 fiber 链表：
+
+循环处理每一个 vdom 的 elements，如果 index 是 0，那就是 child 串联，否则是 sibling 串联。创建出的节
+点都要用 return 指向父节点：
+
+function reconcileChildren(wipFiber, elements) {
+    let index = 0
+    let prevSibling = null
+
+    while (
+        index < elements.length
+    ) {
+        const element = elements[index]
+        let newFiber = {
+            type: element.type,
+            props: element.props,
+            dom: null,
+            return: wipFiber,
+            effectTag: "PLACEMENT",
+        }
+
+        if (index === 0) {
+            wipFiber.child = newFiber
+        } else if (element) {
+            prevSibling.sibling = newFiber
+        }
+
+        prevSibling = newFiber
+        index++
+    }
+}
+
+
+因为我们只实现渲染，暂时不做 diff 和删除修改，所以这里的 effectTag 都是 placement，也就是新增元素。
+
+通过 schdule 空闲调度这样处理每一个 vdom 转 fiber，就能生成整个 fiber 链表。
+
+所以，这就是 reconcile 做的事情：reconcile 负责 vdom 转 fiber，并且还会准备好要用的 dom 节点、确定好
+是增、删、还是改，通过 schdule 的调度，最终把整个 vdom 树转成了 fiber 链表。
+
+当 fiber 转完了，那么 schdule 调度就进入到了这里：
+
+if (!nextFiberReconcileWork) {
+    commitRoot();
+}
+
+我们从根 fiber 开始 commit，并且把 wipRoot 设置为空，因为不再需要调度它了：
+
+function commitRoot() {
+    commitWork(wipRoot.child);
+    wipRoot = null
+}
+
+每个 fiber 节点的渲染就是按照 child、sibling 的顺序以此插入到 dom 中：
+
+function commitWork(fiber) {
+    if (!fiber) {
+        return
+    }
+
+    let domParentFiber = fiber.return
+    while (!domParentFiber.dom) {
+        domParentFiber = domParentFiber.return
+    }
+    const domParent = domParentFiber.dom
+
+    if (
+        fiber.effectTag === "PLACEMENT" &&
+        fiber.dom != null
+    ) {
+        domParent.appendChild(fiber.dom)
+    } 
+    //先往下创建元素
+    commitWork(fiber.child)
+    //再创建兄弟元素
+    commitWork(fiber.sibling)
+}
+
+这里每个 fiber 节点都要往上找它的父节点，因为我们只是新增，那么只需要 appendChild 就行。
+
+dom 已经在 reconcile 节点就创建好了，当时我们没细讲，现在来看下 dom 创建逻辑：
+
+function createDom(fiber) {
+    const dom = fiber.type == "TEXT_ELEMENT" ? document.createTextNode("") : document.createElement(fiber.type);
+
+    for (const prop in fiber.props) {
+        setAttribute(dom, prop, fiber.props[prop]);
+    }
+
+    return dom;
+}
+
+就是根据类型创建元素，然后设置属性：
+
+属性要分别处理 style、文本节点的 value、事件监听器：
+
+
+function isEventListenerAttr(key, value) {
+    return typeof value == 'function' && key.startsWith('on');
+}
+
+function isStyleAttr(key, value) {
+    return key == 'style' && typeof value == 'object';
+}
+
+function isPlainAttr(key, value) {
+    return typeof value != 'object' && typeof value != 'function';
+}
+
+const setAttribute = (dom, key, value) => {
+    if (key === 'children') {
+        return;
+    }
+
+    if (key === 'nodeValue') {
+        dom.textContent = value;
+    } else if (isEventListenerAttr(key, value)) {
+        const eventType = key.slice(2).toLowerCase();
+        dom.addEventListener(eventType, value);
+    } else if (isStyleAttr(key, value)) {
+        Object.assign(dom.style, value);
+    } else if (isPlainAttr(key, value)) {
+        dom.setAttribute(key, value);
+    }
+};
+
+
+这在 reconcile 时就做好了，commit 自然很快。
+
+fiber 是 React16 引入的架构变动，为了彻底理解它，我们实现了一个简易版的 fiber 架构的 React。
+界面通过 vdom 描述，但是不是直接手写 vdom，而是 jsx 编译产生的 render function 之后以后生成的。
+这样就可以加上 state、props 和一些动态逻辑，动态产生 vdom。
+vdom 生成之后不再是直接渲染，而是先转成 fiber，这个 vdom 转 fiber 的过程叫做 reconcile。
+fiber 是一个链表结构，可以打断，这样就可以通过 requestIdleCallback 来空闲调度 reconcile，这样不断
+的循环，直到处理完所有的 vdom 转 fiber 的 reconcile，就开始 commit，也就是更新到 dom。
+reconcile 的过程会提前创建好 dom，还会标记出增删改，那么 commit 阶段就很快了。
+从之前递归渲染时做 diff 来确定增删改以及创建 dom，提前到了可打断的 reconcile 阶段，让 commit 变得非常
+快，这就是 fiber 架构的目的和意义。
+当然，我们还没实现 hooks 以及更新删除，后续会陆续实现。
+如果想彻底搞懂 fiber 架构，不妨按照文章所写来实现一遍 reconcile 的过程，一定会让你对它有更深的认识。
+
+
+
+
+
+
+
+
+
+
+
+
+

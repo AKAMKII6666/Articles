@@ -1,0 +1,142 @@
+Axios简介
+Axios 是一个基于 promise 的 HTTP 库，可以用在浏览器和 node.js 中。
+
+yarn add axios
+
+npm install axios -D
+
+使用装饰器模式装饰axios 封装成我们想要的样子
+
+
+
+import { useRef } from "react";
+import axios from "axios";
+
+/**
+ * Axios封装
+ */
+
+export const useAxiosProxy = function (_axiosConfig, _env) {
+	if (typeof _axiosConfig === "undefined") {
+		return;
+	}
+	/**
+	 * ====================state==========================
+	 */
+
+	/**
+	 * =====================静态变量========================
+	 */
+	const axiosConfig = _axiosConfig;
+
+	let root = "";
+	if (_env === "developement") {
+		root = _axiosConfig.inv.devRoot;
+	}
+	if (_env === "gray") {
+		root = _axiosConfig.inv.grayRoot;
+	}
+	if (_env === "production") {
+		root = _axiosConfig.inv.proRoot;
+	}
+
+	/**
+	 * http request 拦截器
+	 */
+	//axios.interceptors.request.use(
+	//	(config) => {
+	//		config.data = JSON.stringify(config.data);
+	//		config.headers = {
+	//			"Content-Type": "application/json",
+	//		};
+	//		return config;
+	//	},
+	//	(error) => {
+	//		return Promise.reject(error);
+	//	}
+	//);
+
+	/**
+	 * http response 拦截器
+	 */
+	axios.interceptors.response.use(
+		(response) => {
+			if (response.data.errCode === 2) {
+				console.log("过期");
+			}
+			return response;
+		},
+		(error) => {
+			console.log("请求出错：", error);
+		}
+	);
+
+	/**
+	 *  请求接口
+	 * @param {接口名称} _name
+	 * @param {接口参数} _params
+	 */
+	const fetch = function (_name, _params) {
+		//合并参数
+		var params = makeParams(Object.assign(axiosConfig.commands[_name], _params));
+		return axios(params);
+	};
+
+	/**
+	 * 创建参数
+	 */
+	const makeParams = function (_params) {
+		let urlParas = "";
+		if (_params.paramsType === "url") {
+			urlParas = getUrlParas(_params.params);
+		}
+
+		var result = {
+			method: _params.method.toLowerCase(),
+			url: root + _params.url + urlParas,
+			timeout: _params.timeout || 10000,
+			withCredentials: _params.withCredentials || false,
+			responseEncoding: _params.responseEncoding || "utf8",
+			responseType: _params.responseType || "json",
+		};
+
+		if (_params.paramsType !== "url") {
+			result.requestSendType = _params.requestSendType || "json";
+			result.data = _params.params || {};
+		}
+
+		if (_params.headersPar !== null && typeof _params.headersPar !== "undefined") {
+			result.headers = _params.headersPar;
+		}
+
+		return result;
+	};
+
+	/**
+	 * 获得urlParas
+	 */
+	const getUrlParas = function (_params) {
+		var result = "";
+		for (let i in _params) {
+			if (_params.hasOwnProperty(i)) {
+				if (result === "") {
+					result += "?";
+				} else {
+					result += "&";
+				}
+				result += i + "=" + _params[i];
+			}
+		}
+
+		return result;
+	};
+
+	return fetch;
+};
+
+
+重要的是它提供这样的拦截器拦截我们想要的信息来做一些处理:
+axios.interceptors.response.use
+
+
+

@@ -1,0 +1,65 @@
+https://mp.weixin.qq.com/s?__biz=Mzg3OTYzMDkzMg==&mid=2247487905&idx=1&sn=d4acc40f98b24deb161d04119bc54d0e&chksm=cf00de9af877578c7ec0d5a893378f84b5224cff1cfb4c10f44890f65abf41653bc5fdd42c9b&cur_album_id=2235430201809928196&scene=189#wechat_redirect
+实现 patch，也就是：
+
+setState(nextState) {
+    this.state = Object.assign(this.state, nextState);
+    if(this.dom) {
+        patch(this.dom, this.render());
+    }
+}
+
+「patch 功能是把要渲染的 vdom 和已有的 dom 做下 diff，只更新需要更新的 dom，也就是按需更新」。
+
+是否要走 patch 逻辑，这里可以加一个 shouldComponentUpdate 来控制，如果 props 和 state 都没变
+就不用 patch 了。
+
+
+setState(nextState) {
+    this.state = Object.assign(this.state, nextState);
+
+    if(this.dom && this.shouldComponentUpdate(this.props, nextState)) {
+        patch(this.dom, this.render());
+    }
+}
+
+shouldComponentUpdate(nextProps, nextState) {
+    return nextProps != this.props || nextState != this.state;
+}
+
+patch 怎么实现呢？
+
+渲染的时候我们是递归 vdom，对元素、文本、组件分别做不同的处理，包括创建节点和设置属性。patch 更
+新的时候也是同样的递归，但是对元素、文本、组件做的处理不同：
+
+
+
+
+---------------------------------------------------------------------------------------------
+
+
+patch 和 render 一样，也是递归的处理元素、组件、文本。
+
+patch 时要对比下 dom 中的和要渲染的 vdom 的一些信息，然后决定渲染新的 dom，还是复用已有 dom，所以 render 的时候要在
+ dom 上记录 instance、key 等信息。
+
+元素的子元素更新要支持 key做标识，这样可以复用之前的元素，减少 dom 的创建。属性设置的时候 event listener 要每次删掉已
+有的再添加一个新的，保证只会有一个。
+
+实现了 vdom 的渲染和更新，实现了组件和生命周期，这已经是一个完整的前端框架了。
+
+这是我们实现的前端框架的第一个版本，叫做 Dong 1.0。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,74 @@
+webpack的运行原理是什么？
+webpack的运行过程大概是这样的:
+入口点文件   文件处理    后处理    输出
+
+首先webpack会把每个文件都当做是模块来进行处理
+入口点文件就是在webpack配置文件里配置的entry文件。
+文件开始处理的时候会通过入口点文件，以递归的方式检索引用并建立modulesgGraph，在这个过程中根据配置的roles 
+调用相应的loder将一些特定文件进行转译，例如jsx  tsx ts 或者es6/7语法的js文件，转译成我们在babel
+中配置好的目标语言
+模块处理这一部分弯沉够将会进入后处理阶段
+后处理的话主要是一些优化项，例如做chunk分割，代码压缩等。
+之后就是输出在我们output中配置的目录里去。
+
+
+
+----------------------------------------------------------------------------------
+loader的运行机制是什么?
+loader的调用链的运行，有picth 到 normal的过程
+会先按照从左到右的顺序运行pitch 然后到末尾拿到文件的内容，再从右到左运行loader本身的逻辑。
+如果在pitch过程中有直接拿到结果的loader模块，就会从那个位置从右到左往回处理。
+
+
+
+
+----------------------------------------------------------------------------------
+plugin的运行机制是什么?
+plugin 是一个带有apply函数的类,它的自由度比loader更高，可以做更复杂的模块、文件处理，甚至改变webpack的运行逻辑
+我没有写过具体的plugin,但是有研究过，例如我们熟知的definePlugin就是通过pluginAPI实现的
+
+
+
+
+
+
+----------------------------------------------------------------------------------
+loader和plugin有什么区别？
+loader是在构建modulesgGraph的过程中运行的自定义文件处理过程，可以通过一系列过滤条件帮助我们找到要处理的文件并处
+理他们成我们想要的样子。
+plugin是在后处理阶段运行的，它可以帮助我们做更复杂的模块或者文件处理，例如splitChunks,definePlugin,terserPlugin等
+
+
+----------------------------------------------------------------------------------
+你平时会用什么loader?
+babel-loader用来处理jsx ts 和es6/7
+style-loader 将css文件处理成独立的css
+css-loader
+less-loader
+sass-loader
+postcss-loader
+
+
+----------------------------------------------------------------------------------
+你平时用什么plugin?
+MiniCssExtractPlugin
+htmlWebpackPlugin
+CleanWebpackPlugin
+
+webpack.HotModuleReplacementPlugin
+webpack.DefinePlugin
+
+CompressionWebpackPlugin
+
+
+
+
+
+
+
+
+
+
+
+
+

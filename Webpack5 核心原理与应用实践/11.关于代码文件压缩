@@ -1,0 +1,236 @@
+关于代码文件压缩
+
+代码压缩是指在不改变代码的功能之下，缩小代码的体积，通过去除多余的空格，注释，压缩变量名称等方式
+将代码的体积变小。
+
+代码压缩的管家难问题是，如何用更精简的代码表达同一套程序逻辑。
+
+代码压缩的原理:
+
+ - 变量名 name 语义很明确，大多数“人”看到就基本明白是干什么用的，但这对计算机并没有什么意义，我们完
+    全可以将 name 修改为 a —— 从 4 个字符精简为 1 个字符，但仍保持改动前后逻辑、功能效果完全一致；
+
+ - 赋值操作符 = 前后都有空格，这种格式对阅读代码的“人”很友好，视觉效果非常舒适、整齐，但对计算机而言
+    同样毫无意义，我们可以将这前后两个空格删掉 —— 精简了两个字符；
+
+ - 虽然 const 与 let 关键词的功能不同，但特定情况下我们同样能牺牲一部分功能性，用 let 替换 const，从
+     5 个字符精简为 3 个字符。
+
+
+为了应对这一系列的的问题，通过将代码先生成为AST(抽象语法树),然后再在语法树的基础上进行语义，语法，逻辑推理
+的简化操作，然后再生成出被简化过后的代码文件.
+
+这些工具很多，例如:Terser、ESBuild、CSS-Nano、babel-minify、htmlMinifierTerser 等
+这些工具可以在webpack中轻松接入:
+
+-----------------------------------------------------------------------------
+使用 TerserWebpackPlugin 压缩 JS
+
+Terser是当下最流行的ES6代码压缩工具了，支持：
+ - 去除死代码的功能（ Dead-Code Eliminate）
+ - 删除注释
+ - 删除空格
+ - 代码合并
+ - 变量名简化
+
+ 等一系列代码压缩功能。Terser的前身是大名鼎鼎的UglifyJS,它在UglifyJS的基础上增加了ES6的语法支持
+ 并重构了代码解析，压缩算法，使得执行效率与压缩效率都有很大的提升
+
+ Webpack5内置了Terser的JS代码压缩功能，只需要通过很简单的配置就可以使用:
+ module.exports = {
+  optimization: {
+    minimize: true
+  }
+};
+使用 mode = 'production' 启动生产模式构建时，默认也会开启 Terser 压缩。
+
+
+也可以这样配置:
+const TerserPlugin = require("terser-webpack-plugin");
+
+module.exports = {
+    optimization: {
+        minimize: true
+        minimizer: [
+            new TerserPlugin({
+                options: {  
+                    //用于配置需要压缩什么文件
+                    test: /\.m?js(\?.*)?$/i,
+                    //用于过滤哪些Chunk压缩，哪些不压缩
+                    chunkFilter: [Function: chunkFilter],
+                    //warningsFilter 一个过滤警告的函数，返回 true 表示保留警告信息
+                    warningsFilter: [Function: warningsFilter],
+                    //移除注释
+                    extractComments: true,
+                    //sourceMap 是否开启 sourceMap 或通过对象指定 sourceMap 选项
+                    sourceMap: true,
+                    //cache 是否允许缓存文件，默认为 true。（ webpack5 下无法工作 ）
+                    cache: true,
+                    //cacheKeys 一个返回 cacheKeys 对象的函数，覆盖默认的 cache keys。（ webpack5 下无法工作 ）
+                    cacheKeys: [Function: cacheKeys],
+                    //parallel 多进程并行提升打包速度，默认值为 cpu 核心数减 1 ： os.cpus().length - 1
+                    parallel: true,
+                    //include 包括的文件或目录
+                    include: undefined,
+                    //exclude 要排除的文件或目录
+                    exclude: undefined,
+                    //minify 覆盖默认的 minify 函数
+                    minify: undefined,
+                    //插件的压缩选项配置
+                    terserOptions: {
+                        //指定一些额外的解析选项
+                        parse: [Object],
+                        //指定压缩选项，或跳过压缩
+                        compress: [Object],
+                        //指定变量名压缩选项，或跳过破坏变量名
+                        mangle: [Object],
+                        //输出选项
+                        output: [Object]
+                    }
+                }
+            })
+        ]
+    }
+}
+
+TerserPlugin的配置文档大全（中文）:
+https://drylint.com/Webpack/terser-webpack-plugin.html
+
+
+
+---------------------------------------------------------------------------------------
+terser-webpack-plugin 插件并不只是 Terser 的简单包装
+它还用适配器模式适配了SWC UglifyJS  ESBuild 作为压缩器，配置一下就可以更换工作模式:
+
+module.exports = {
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        minify: TerserPlugin.swcMinify,
+        // `terserOptions` 将被传递到 `swc` (`@swc/core`) 工具
+        // 具体配置参数可参考：https://swc.rs/docs/config-js-minify
+        terserOptions: {},
+      }),
+    ],
+  },
+};
+
+
+TerserPlugin 内置如下压缩器：
+
+ - TerserPlugin.terserMinify：依赖于 terser 库；
+ - TerserPlugin.uglifyJsMinify：依赖于 uglify-js，需要手动安装 yarn add -D uglify-js；
+ - TerserPlugin.swcMinify：依赖于 @swc/core，需要手动安装 yarn add -D @swc/core；
+ - TerserPlugin.esbuildMinify：依赖于 esbuild，需要手动安装 yarn add -D esbuild。
+
+ 另外，terserOptions 配置也不仅仅专供 terser 使用，而是会透传给具体的 minifier，因此使用不同压缩
+ 器时支持的配置选项也会不同。
+
+
+---------------------------------------------------------------------------------------
+使用 CssMinimizerWebpackPlugin 压缩 CSS
+css是一种灵活多变略显复杂的声明式语言。
+css同样也可以压缩，主要效果还是去除注释，压缩空格换行符，规范化书写等。
+
+安装CssMinimizerWebpackPlugin:
+
+npm i mini-css-extract-plugin css-minimizer-webpack-plugin
+
+要用两个组件， mini-css-extract-plugin用于将css提取成单个文件，css-minimizer-webpack-plugin用于压缩css
+
+配置:
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+
+module.exports = {
+  //...
+  module: {
+    rules: [
+      {
+        test: /.css$/,
+        // 注意，这里用的是 `MiniCssExtractPlugin.loader` 而不是 `style-loader`
+        use: [MiniCssExtractPlugin.loader, "css-loader"],
+      },
+    ],
+  },
+  optimization: {
+    minimize: true,
+    minimizer: [
+      // Webpack5 之后，约定使用 `'...'` 字面量保留默认 `minimizer` 配置
+      "...",
+      new CssMinimizerPlugin(),
+    ],
+  },
+  // 需要使用 `mini-css-extract-plugin` 将 CSS 代码抽取为单独文件
+  // 才能命中 `css-minimizer-webpack-plugin` 默认的 `test` 规则
+  plugins: [new MiniCssExtractPlugin()],
+};
+
+-----------------------------------------------------------------------------------
+当然还可以使用 HtmlMinifierTerser 压缩 HTML
+
+pnpm i -D html-minimizer-webpack-plugin
+
+const HtmlMinimizerPlugin = require("html-minimizer-webpack-plugin");
+
+ optimization: {
+    minimize: true,
+    minimizer: [
+      // Webpack5 之后，约定使用 `'...'` 字面量保留默认 `minimizer` 配置
+      "...",
+      new HtmlMinimizerPlugin({
+        minimizerOptions: {
+          // 折叠 Boolean 型属性
+          collapseBooleanAttributes: true,
+          // 使用精简 `doctype` 定义
+          useShortDoctype: true,
+          // ...
+        },
+      }),
+    ],
+  },
+
+代码压缩和代码混淆是什么关系
+
+总价：代码混淆的目的是降低代码可读性，目的不一样，但是有时候在代码压缩的时候可以顺便做到降低代码的可读性。
+
+代码压缩侧重的是减少代码体积，而代码混淆侧重的是降低代码可读性，从而达到保护代码，降低代码被别有
+用心的人利用的目的。个人认为，代码压缩是代码混淆的一种实现手段，因为代码压缩必然会导致代码可读性降
+低，但代码混淆的手段却不止有代码压缩，并且代码混淆有时候还会导致代码体积的膨胀，比如说现在常用到
+的流程平坦化，这种混淆方式就会使代码体积膨胀，但对于降低可读性却具有重要作用。所以说，代码压缩和
+代码混淆的概念不是等价的。
+
+
+=============================================================================
+=============================================================================
+=============================================================================
+更多的优化技巧:
+1.模块动态加载
+2.HTTP 缓存优化 就是配置chunk的文件名，达到增量更新的效果
+3.使用外置依赖。
+4.使用 Tree-Shaking 删除多余模块导出
+module.exports = {
+  mode: "production",
+  optimization: {
+    usedExports: true,
+  },
+};
+使用 Scope Hoisting 合并模块
+将符合条件的多个模块合并到同一个函数空间
+const ModuleConcatenationPlugin = require('webpack/lib/optimize/ModuleConcatenationPlugin');
+
+module.exports = {
+    // 方法1： 将 `mode` 设置为 production，即可开启
+    mode: "production",
+    // 方法2： 将 `optimization.concatenateModules` 设置为 true
+    optimization: {
+        concatenateModules: true,
+        usedExports: true,
+        providedExports: true,
+    },
+    // 方法3： 直接使用 `ModuleConcatenationPlugin` 插件
+    plugins: [new ModuleConcatenationPlugin()]
+};
+
+5.监控产物体积

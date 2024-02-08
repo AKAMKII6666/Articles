@@ -1,0 +1,28 @@
+type RECORD<K extends string | nuimber | symbol,v> = {
+    [P in K] : V,
+}
+
+type LEIXING = RECORD<"name"|"age",string | number>;
+
+let  bianliang:LEIXING = {
+    name:"123",
+    age:1
+}
+
+
+type LEIXING = RECORD<"name"|"age",string | number>;
+意思是将name,age 的类型都设置为string | number
+
+type LEIXING = {
+    name:string | number,
+    age:string | number
+}
+
+-----------------------------------------------
+ts里已经提供经这样的关键字:
+
+type LEIXING = Record<"name"|"age",string | number>;
+
+-----------------------------------------------
+任意字段批量设置类型:
+type LEIXING = Record< string , string | number>;
