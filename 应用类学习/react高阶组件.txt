@@ -1,0 +1,26 @@
+
+===总而言之，react的高阶组件就是一个装饰器。
+- 它只扩展功能,不修改目标组件的方法和属性
+- 传入一个函数，返回一个被装饰过的函数
+
+```javascript
+
+    //定义高阶组件
+    const HOComponent = function(WarppedComponent){
+        //返回新的组件
+        return function(props){
+
+            const [state1,setstate1] = useState("123")
+
+            return (<WarppedComponent {...props} value={state1} />)
+        }
+    }
+
+```
+
+使用它的时候用这个高阶组件对目标组件进行装饰
+
+```javascript
+    const newCom = HOComponent(TargetComponent);
+
+```
