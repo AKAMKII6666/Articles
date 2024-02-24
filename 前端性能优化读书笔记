@@ -63,7 +63,7 @@ new webpack.DllPlugin({
 
 
 项目中的wepackConfig也需要配置，需要告知项目本体，已经打包了这些文件了，不需要再进行打包了
-单靠文档:
+参考文档:
 https://blog.csdn.net/qq_35779012/article/details/119600682
 
 
