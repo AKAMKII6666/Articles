@@ -1,0 +1,38 @@
+
+使用websocket访问币安交易对的k线数据
+----------------------------------------------------------------
+const refWebsocket = useRef<WebSocket | null>(null);
+
+let symbol = "BNBBTC"; // The BSC trading pair you want to subscribe to, e.g., BNBBUSD
+let interval = "1m"; // The candlestick interval, such as 1 minute, 3 minutes, or 1 hour
+
+// Subscription message for candlestick data
+let subscribeMessage = {
+    method: "SUBSCRIBE",
+    params: [
+        `${symbol.toLowerCase()}@kline_${interval}`, // Channel name for candlesticks, e.g., 'bnbbusd@kline_1m'
+    ],
+    id: Date.now(), // Optional but often used for unique request identification
+};
+
+
+useEffect(
+    function (): ReturnType<React.EffectCallback> {
+        if (isMounted === false) {
+            setIsMounted(true);
+            if (!isRunningInServer) {
+                //拿取binance链上现成的交易对
+                refWebsocket.current = new WebSocket("wss://stream.binance.com:9443/ws");
+                refWebsocket.current.onopen = function () {
+                    refWebsocket.current!.send(JSON.stringify(subscribeMessage));
+                };
+
+                refWebsocket.current.onmessage = function (data: any) {
+                    console.log(JSON.parse(data.data));
+                };
+            }
+        }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isMounted]
+);

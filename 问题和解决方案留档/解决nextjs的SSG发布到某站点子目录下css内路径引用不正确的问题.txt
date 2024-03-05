@@ -1,0 +1,225 @@
+解决nextjs的SSG发布到某站点子目录下css内路径引用不正确的问题
+首先要解决模块路径不正确的问题，可以修改distDir来解决
+----------------------------------------------------------------
+
+
+//对外发布
+if (sys_env === "production" || sys_env === "gray") {
+	//使用导出模式
+	nextConfig.output = "export";
+
+	//将导出路径设置为相对路径
+	nextConfig.basePath = "";
+	//修复导出文件（js/css）的引用路径
+	nextConfig.assetPrefix = './';
+
+	nextConfig.distDir = "../yourSite/somePath/";
+}
+
+
+然后要解决css内文件引用的路径问题，这个问题需要自己编写一个webpack插件来解决:
+----------------------------------------------------------------
+
+const postcss = require('postcss');
+const postcssUrl = require('postcss-url');
+
+class ModifyCssUrlPlugin {
+    constructor(options) {
+        // 接受传递的参数
+        this.options = options || {};
+    }
+    apply(compiler) {
+        compiler.hooks.emit.tapAsync('ModifyCssUrlPlugin', (compilation, callback) => {
+            // 遍历所有的 CSS 文件
+            Object.keys(compilation.assets).forEach((filename) => {
+                if (filename.endsWith('.css')) {
+                    const asset = compilation.assets[filename];
+                    const cssSource = asset.source();
+
+                    // 使用 PostCSS 处理 CSS
+                    postcss([
+                        postcssUrl({
+                            url: (asset) => {
+                                // 修改 URL，将原始的 URL 替换为 'yourSite/'
+                                return this.options.modify(asset);
+                            },
+                        }),
+                    ])
+                        .process(cssSource, { from: undefined })
+                        .then((result) => {
+                            // 将处理后的 CSS 替换原始文件内容
+                            compilation.assets[filename] = {
+                                source: () => result.css,
+                                size: () => result.css.length,
+                            };
+                        })
+                        .catch((error) => {
+                            console.error('Error processing CSS:', error);
+                        });
+                }
+            });
+
+            // 继续构建流程
+            callback();
+        });
+    }
+}
+
+module.exports = ModifyCssUrlPlugin;
+
+这个插件使用了postcss来解决这个问题
+然后在next.config中进行配置:
+----------------------------------------------------------------
+
+//对外发布
+if (sys_env === "production" || sys_env === "gray") {
+	webPackConfig.plugins = [
+		//这是自己写的一个插件，插件源代码就在本项目根目录
+		//需要解决的问题：output导出到其它站点的二级目录之后，
+		//css内的资源引用路径出现了错误
+		//里面把资源引用路径改正了，将二级路径输入进去，方便资源访问
+		new ModifyCssUrlPlugin({
+			// 更改路径
+			modify: function (asset) {
+				return `/yourSite/${asset.url}`;
+			}
+		}),
+	];
+}
+
+完整next.config代码:
+
+----------------------------------------------------------------
+/** @type {import('next').NextConfig} */
+const withCSS = require("@zeit/next-css");
+const withImages = require('next-images');
+const merge = require("webpack-merge");
+const TerserPlugin = require("terser-webpack-plugin");
+const path = require("path");
+const ModifyCssUrlPlugin = require('./modifyCssUrlPath');
+const WebpackObfuscator = require('webpack-obfuscator');
+let sys_env = process.env["SYS_ENV"];
+let client_type = process.env["CLIENT_TYPE"];
+
+
+/**
+ * webpack配置
+ */
+let webPackConfig = {
+	resolve: {
+		fallback: {
+			assert: false,
+			os: false,
+			fs: false,
+			tls: false,
+			net: false,
+			path: false,
+			zlib: false,
+			http: require.resolve("http-browserify"),
+			https: require.resolve("https-browserify"),
+			stream: require.resolve("stream-browserify"),
+			crypto: false,
+			"crypto-browserify": require.resolve("crypto-browserify"),
+		},
+	}
+};
+
+//对外发布
+if (sys_env === "production" || sys_env === "gray") {
+	webPackConfig.plugins = [
+		//这是自己写的一个插件，插件源代码就在本项目根目录
+		//需要解决的问题：output导出到其它站点的二级目录之后，
+		//css内的资源引用路径出现了错误
+		//里面把资源引用路径改正了，将二级路径输入进去，方便资源访问
+		new ModifyCssUrlPlugin({
+			// 更改路径
+			modify: function (asset) {
+				return `/yourSite/${asset.url}`;
+			}
+		}),
+		/* 		new WebpackObfuscator({
+					rotateStringArray: true,
+					controlFlowFlattening: true,
+					deadCodeInjection: true,
+					stringArray: true,
+					splitStrings: true,
+					transformObjectKeys: true,
+					unicodeEscapeSequence: true,
+					compact: true,
+					shuffleStringArray: true,
+					identifierNamesGenerator: 'hexadecimal',
+				}) */
+	];
+}
+
+
+
+const nextConfig = {
+	/**
+	 * react严格模式
+	 * 这里有个bug,调成true的话会引发页面渲染两次的bug
+	 */
+	reactStrictMode: false,
+	swcMinify: true,
+	cssModules: false,
+	env: {
+		SYS_ENV: process.env["SYS_ENV"],
+		CLIENT_TYPE: process.env["CLIENT_TYPE"],
+		SYS_OUTDATE_END: +new Date() + 1000 * 60 * 60 * 24 * 7 * 4,
+	},
+	/**
+	 * 自定义webpack配置
+	 */
+	webpack: function (config, options) {
+		//配置合并
+		let _config = merge.merge(config, webPackConfig);
+		return _config;
+	},
+};
+
+
+
+//对外发布
+if (sys_env === "production" || sys_env === "gray") {
+	//使用导出模式
+	nextConfig.output = "export";
+
+	//将导出路径设置为相对路径
+	nextConfig.basePath = "";
+	//修复导出文件（js/css）的引用路径
+	nextConfig.assetPrefix = './';
+
+	if (client_type === "member") {
+		//将站点发布到另一个站点的子目录去
+		nextConfig.distDir = "../aaa/bbb/yourSite/";
+	} else {
+		//将站点发布到另一个站点的子目录去
+		nextConfig.distDir = "../aaa/bbb/yourSite/";
+	}
+}
+
+module.exports = nextConfig;
+
+//const withBundleAnalyzer = require("@next/bundle-analyzer")({
+//	enabled: process.env.ANALYZE === "true",
+//});
+//module.exports = withBundleAnalyzer({});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
