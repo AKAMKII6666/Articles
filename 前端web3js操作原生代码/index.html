@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/web3@1.5.3/dist/web3.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/bignumber.js@9.1.0/bignumber.min.js"></script>
+		<script type="module">
+			import metamaskonboarding from "https://cdn.jsdelivr.net/npm/@metamask/onboarding@1.0.1/+esm";
+			window.metamaskonboarding = metamaskonboarding;
+		</script>
+		<title>钱包示例</title>
+	</head>
+
+	<body>
+		<div>钱包示例</div>
+		<div><button id="installWallet_btn">安装钱包</button></div>
+		<div>
+			<button id="linkWallet_btn">链接钱包</button>
+			<div>钱包地址:<span id="walletAddress"></span></div>
+			<div>链id:<span id="walletchainId"></span></div>
+		</div>
+		<div>
+			<button id="switchNetwork_btn">切换网络到TestBsc</button>
+		</div>
+		<div>
+			金额:
+			<input type="text" id="text_point" value="0.0001" />
+			目标账户:
+			<input type="text" id="text_account_target" value="0xB836608bbE62042e32FD3CD332BF595599Bec8d8" />
+			<button id="makeTranx_btn">发起转账</button>
+		</div>
+		<script src="./main.js"></script>
+	</body>
+</html>
