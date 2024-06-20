@@ -1,3 +1,45 @@
+
+-----------------------------------------------------------
+简单说说react的工作原理.
+
+1.虚拟DOM（Virtual DOM）和Diff算法:
+2.组件化与生命周期:
+3.单向数据流与状态管理:
+4.事件处理与合成事件系统:
+5.异步渲染与React Fiber架构:
+
+1.虚拟DOM（Virtual DOM）和Diff算法:
+React应用构建在组件化的基础上，每个组件都会维护一个内部状态和UI描述。
+当组件的状态发生变化时，React会重新计算组件的输出，并生成一个新的虚
+拟DOM树（一种轻量级JavaScript对象表示的真实DOM结构）。
+React通过高效地比较新旧虚拟DOM树之间的差异（采用算法如diff算法），
+找出最小化的DOM更新集，然后将这些变化反映到实际DOM上，从而避免了不必
+要的DOM操作，提高页面性能。
+
+2.组件化与生命周期:
+React的核心思想之一是组件化。开发者可以自定义可重用的组件，每个组件都有
+自己的属性(props)和状态(state)。
+组件有多个生命周期方法，允许开发者在特定时刻插入逻辑，比如挂载前(compone
+ntWillMount或getDerivedStateFromProps)、挂载后(componentDidMount)、
+更新前后(shouldComponentUpdate, componentWillUpdate, getSnapshotBef
+oreUpdate, componentDidUpdate)以及卸载(componentWillUnmount)等阶段。
+
+3.单向数据流与状态管理:
+React提倡单向数据绑定，即数据流向是从父组件到子组件，通过props传递。
+状态管理可以通过组件自身的state实现局部状态管理，而复杂的应用场景下，React
+也支持如Redux、Context API等集中式状态管理方案。
+
+4.事件处理与合成事件系统:
+React使用合成事件系统，提供了一个跨浏览器兼容的事件处理机制。它在顶层DOM节
+点上设置一个监听器，然后将事件代理到各个组件，这样可以减少内存占用并提升性能。
+
+5.异步渲染与React Fiber架构:
+为了更好地支持动画、高性能和可中断/恢复的渲染过程，React引入了Fiber架构。
+Fiber是一个协调引擎，它改变了React的工作方式，使得渲染任务能够分片执行，使
+得React可以在多帧之间分配渲染工作，优先处理用户交互，以实现更流畅的用户体验。
+
+
+-----------------------------------------------------------
 react都有一些什么生命周期函数?
 
 创建的时候：

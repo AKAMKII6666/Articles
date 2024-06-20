@@ -1,0 +1,69 @@
+ajax通信的时候有时候设置了跨域，但仅限于数据通信，不包含cookie信息的传递
+需要完全取得cookie信息的传递需要设置下面的配置项目:
+
+jquery 要设置：
+xhrFields: {
+    withCredentials: true,
+},
+
+
+express要设置:
+app.use(
+    expressSession({
+        name: "sessionId",
+        secret: SECRET_GLOBAL,
+        saveUninitialized: false,
+        resave: false,
+        cookie: {
+            // 设置session ID cookie的过期时间（以毫秒为单位）
+            maxAge: 1000 * 60 * 60 * 2, // 过期时间两个小时
+            sameSite: false,
+            secure: false,
+            httpOnly: true,
+        },
+    })
+);
+
+app.use(
+    cors({
+        origin: "http://localhost:8888",
+        methods: ["POST", "PUT", "GET", "OPTIONS", "HEAD"],
+        credentials: true,
+    })
+);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
