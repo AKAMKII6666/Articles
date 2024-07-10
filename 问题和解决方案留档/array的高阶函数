@@ -1,0 +1,93 @@
+JavaScript 数组（Array）对象提供了多个高阶函数，这些函数允许你以声明式的方式处理数组，而不需要显式地编写循环。这些高阶函数包括但不限于以下几种：
+
+1.
+forEach()：对数组的每个元素执行一次提供的函数。
+2.
+map()：创建一个新数组，其结果是该数组中的每个元素是调用一次提供的函数后的返回值。
+3.
+filter()：创建一个新数组，包含通过所提供函数实现的测试的所有元素。
+4.
+reduce()：对数组中的每个元素执行一个由您提供的“reducer”函数(升序执行)，将其结果汇总为单个返回值。
+5.
+reduceRight()：与 reduce() 类似，但是从数组的末尾开始。
+6.
+every()：测试数组的所有元素是否都通过由提供的函数实现的测试。
+7.
+some()：测试数组中是否至少有一个元素通过由提供的函数实现的测试。
+8.
+find()：返回数组中满足提供的测试函数的第一个元素的值，否则返回 undefined。
+9.
+findIndex()：返回数组中满足提供的测试函数的第一个元素的索引，否则返回 -1。
+10.
+sort()：对数组的元素进行排序并返回数组。
+11.
+concat()：用于合并两个或多个数组。此方法不会更改现有的数组，而是返回一个新数组。
+12.
+slice()：返回数组的一个片段或子数组。
+13.
+splice()：通过删除现有元素和/或添加新元素来更改数组的内容。
+这些高阶函数极大地简化了数组操作，使代码更加简洁和易于理解。它们是函数式编程范式在 JavaScript 中的体现，允许开发者以声明式的方式编写代码，而不是命令式地编写循环和条件语句。
+
+
+手写reduce
+Array.prototype.reduce = function <T, U>(
+	_callback: (acc: T, current: U, index: number, array: U[]) => T,
+	initalValue?: T
+) {
+	let result: T;
+	let startIndex: number = 0;
+	if (typeof initalValue !== "undefined") {
+		result = initalValue;
+		startIndex = 1;
+	} else if (this.length !== 0) {
+		result = this[0];
+	} else {
+		throw new Error("Empty array!");
+	}
+	for (let i = 0; i < this.length; i++) {
+		result = _callback(result, this[i], i, this);
+	}
+	return result;
+};
+
+
+/**
+ * 千分位分割
+ */
+const thousandsSplit = function (_number: number | string): string {
+	let numString: string = "";
+	let intgerPart = "";
+	let floatPart = "";
+	let result = "";
+
+	//确保类型准确
+	if (typeof _number === "string") {
+		numString = _number;
+	} else if (typeof _number === "number") {
+		numString = _number.toString();
+	}
+
+	//判断是否存在小数
+	if (numString.indexOf(".") !== -1) {
+		intgerPart = numString.split(".")[0];
+		floatPart = numString.split(".")[1];
+	} else {
+		intgerPart = numString;
+	}
+
+	result = intgerPart
+		.split("")
+		.reverse()
+		.reduce(function (acc, current, index) {
+			if (index % 3 === 0 && index !== 0) {
+				acc = "," + acc;
+			}
+			return current + acc;
+		});
+
+	//组装返回值
+	if (floatPart !== "") {
+		return result + "." + floatPart;
+	}
+	return result;
+};
