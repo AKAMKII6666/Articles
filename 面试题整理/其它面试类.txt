@@ -66,6 +66,32 @@ withCredentials:true
 Access-Control-Allow-Origin
 Access-Control-Allow-Credentials
 
+基本类型就是
+string
+number
+undefined
+null
+symbol
+bigint
+
+
+
+Promise.all             
+Promise.allSettled      
+Promise.race            
+Promise.any       
+
+
+
+
+原型链是什么？
+原型链是一种设计模式，我们浏览器天生就实现了这样的设计模式、
+在浏览器中，原型链最顶层的对象是object,object上面的原型为null
+原型链的核心就是复制，或者说拷贝，在我们创建一个对象的时候，实际上就是将其复制了一份，
+并将复制的这一份之中的prototype属性指向我们复制的那个原始对象。
+例如Array的prototype是object
+如果我们new一个array 那么就是通过Array的构造器派生出来的新的对象 它的__proto__指向的就是它的原型Array 
+如果我们在Array上面使用了一个Array上并不存在的属性或者方法，它会在链上一直向上寻找这个属性或者方法。
 
 
 
