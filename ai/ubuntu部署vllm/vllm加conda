@@ -1,0 +1,64 @@
+参考视频:
+https://www.bilibili.com/video/BV177AHeQEA4/?spm_id_from=333.1007.top_right_bar_window_default_collection.content.click&vd_source=d54a9019cfd533224c65212f0eaf5180
+
+
+1.安装ubuntu 注意，ubuntu需要一张完整的硬盘来安装，在现有的分区上安装是不可行的
+2.安装nvidia驱动(12.4)  以及cuda toolkit 12.4
+3.安装miniconda
+4.创建一个conda环境，并 conda activate vLLM 进入conda环境
+5.安装pytroch: conda install pytorch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 pytorch-cuda=12.4 -c pytorch -c nvidia
+6.安装vllm: pip install vLLM
+
+
+现在运行vllm的sh文件在 /home/bobliao/ai/runDeepseek32b.sh  以及 /home/bobliao/ai/runDeepseek70b.sh
+直接运行这俩bush就好了
+
+32b:
+----------------------------------------------------------------------------------------
+#!/bin/bash
+
+CUDA_DEVICE_ORDER=PCI_BUS_ID \
+CUDA_VISIBLE_DEVICES=0,1 \
+vllm serve "Valdemardi/DeepSeek-R1-Distill-Qwen-32B-AWQ" \
+--quantization awq \
+--tensor-parallel-size 2 \
+--dtype half \
+--max-model-len 54848 \
+--port 12345 \
+--gpu-memory-utilization 0.80 \
+--block-size 32 \
+--enforce-eager
+----------------------------------------------------------------------------------------
+
+70b:
+----------------------------------------------------------------------------------------
+#!/bin/bash
+
+CUDA_DEVICE_ORDER=PCI_BUS_ID \
+CUDA_VISIBLE_DEVICES=0,1 \
+vllm serve "Valdemardi/DeepSeek-R1-Distill-Llama-70B-AWQ" \
+--quantization awq \
+--tensor-parallel-size 2 \
+--dtype half \
+--max-model-len 1056 \
+--port 12345 \
+--gpu-memory-utilization 1 \
+--block-size 32 \
+--enforce-eager
+----------------------------------------------------------------------------------------
+
+模型通讯端口:
+http://192.168.0.126:12345
+
+
+open webui的启动:
+sudo docker container start ed712584483d7733b745c2517b125cf187dabd2ecba6159fd3da8ff4429925cb
+
+访问:
+http://192.168.0.126:8080 进入openwebui
+
+open webui 访问模型的连接不能使用 localhost或者127.0.0.1
+因为open webui 在docker虚拟环境里面，网路是隔离的
+
+
+
