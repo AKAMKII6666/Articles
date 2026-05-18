@@ -48,6 +48,8 @@
  * =============================================================================
  */
 
+import { useEffect, useRef, useCallback } from "react";
+
 // -----------------------------------------------------------------------------
 // types — 类型与状态说明
 // -----------------------------------------------------------------------------
@@ -91,15 +93,15 @@ export type PollMap = Record<string, PollEntry>;
 /** 轮询单个任务状态：GET /api/v1/jobs/{job_id} */
 export async function fetchJobStatus(jobId: string): Promise<JobPollState> {
 	const res = await fetch(`/api/v1/jobs/${jobId}`);
-	if (!res.ok) throw new Error(`poll failed: ${res.status}`);
+	if (!res.ok) {
+		throw new Error(`poll failed: ${res.status}`);
+	}
 	return res.json();
 }
 
 // -----------------------------------------------------------------------------
-// useJobPollScheduler
+// 常量与工具函数
 // -----------------------------------------------------------------------------
-
-import { useEffect, useRef, useCallback } from "react";
 
 /** 主循环扫描间隔：检查是否有 job 到期该 poll */
 const TICK_MS = 500;
@@ -117,14 +119,64 @@ const TERMINAL: JobStatus[] = ["succeeded", "failed", "cancelled"];
 const IN_FLIGHT_STATUS: JobStatus[] = ["queued", "processing"];
 
 /** 是否为终态 */
-function isTerminal(status: JobStatus) {
+function isTerminal(status: JobStatus): boolean {
 	return TERMINAL.includes(status);
 }
 
 /** 是否仍需轮询 */
-function isInFlight(status: JobStatus) {
+function isInFlight(status: JobStatus): boolean {
 	return IN_FLIGHT_STATUS.includes(status);
 }
+
+/** 从接口响应解析下次轮询延迟（毫秒） */
+function resolvePollDelay(job: JobPollState): number {
+	if (job.next_poll_after !== undefined && job.next_poll_after !== null) {
+		return job.next_poll_after;
+	}
+	return DEFAULT_BACKOFF_MS;
+}
+
+/** pollMap 是否为空 */
+function isPollMapEmpty(map: PollMap): boolean {
+	return Object.keys(map).length === 0;
+}
+
+/** 筛选已到期且未 inFlight 的条目，按 nextPollAt 升序，取前 limit 条 */
+function pickDueEntries(entries: PollEntry[], now: number, limit: number): PollEntry[] {
+	const due: PollEntry[] = [];
+
+	for (let i = 0; i < entries.length; i++) {
+		const entry = entries[i];
+		if (!entry.inFlight && entry.nextPollAt <= now) {
+			due.push(entry);
+		}
+	}
+
+	due.sort(function compareNextPollAt(a, b) {
+		return a.nextPollAt - b.nextPollAt;
+	});
+
+	if (due.length <= limit) {
+		return due;
+	}
+
+	return due.slice(0, limit);
+}
+
+/** 统计 inFlight 为 true 的条目数量 */
+function countInFlight(entries: PollEntry[]): number {
+	let count = 0;
+	for (let i = 0; i < entries.length; i++) {
+		if (entries[i].inFlight) {
+			count = count + 1;
+		}
+	}
+	return count;
+}
+
+// -----------------------------------------------------------------------------
+// useJobPollScheduler
+// -----------------------------------------------------------------------------
 
 /** useJobPollScheduler 入参：与 zustand globalStore 解耦，通过回调读写 */
 export interface UseJobPollSchedulerOptions {
@@ -149,7 +201,20 @@ export interface UseJobPollSchedulerOptions {
  * 内部维护唯一 setInterval，不暴露给业务组件。
  */
 export function useJobPollScheduler(options: UseJobPollSchedulerOptions) {
-	const { getPollMap, setPollMap, onJobUpdate, onJobTerminal, maxConcurrency = MAX_CONCURRENCY, tickMs = TICK_MS } = options;
+	const getPollMap = options.getPollMap;
+	const setPollMap = options.setPollMap;
+	const onJobUpdate = options.onJobUpdate;
+	const onJobTerminal = options.onJobTerminal;
+
+	let maxConcurrency = MAX_CONCURRENCY;
+	if (options.maxConcurrency !== undefined) {
+		maxConcurrency = options.maxConcurrency;
+	}
+
+	let tickMs = TICK_MS;
+	if (options.tickMs !== undefined) {
+		tickMs = options.tickMs;
+	}
 
 	/** 调度器主循环是否在跑 */
 	const runningRef = useRef(false);
@@ -157,78 +222,38 @@ export function useJobPollScheduler(options: UseJobPollSchedulerOptions) {
 	/** setInterval 句柄，stop 时清除 */
 	const loopTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+	/** tick 引用，供 start 内 setInterval 调用（避免声明顺序问题） */
+	const tickRef = useRef<() => void>(function noop() {});
+
 	/**
 	 * 停止主循环
 	 * - pollMap 为空时由 tick / unregister 触发
 	 * - Dashboard 卸载时由 useEffect cleanup 触发
 	 */
-	const stop = useCallback(() => {
+	const stop = useCallback(function stopScheduler() {
 		runningRef.current = false;
-		if (loopTimerRef.current) {
+		if (loopTimerRef.current !== null) {
 			clearInterval(loopTimerRef.current);
 			loopTimerRef.current = null;
 		}
 	}, []);
 
 	/**
-	 * 启动主循环（已运行则忽略）
-	 * 每 tickMs 执行一次 tick()
-	 */
-	const start = useCallback(() => {
-		if (runningRef.current) return;
-		runningRef.current = true;
-		loopTimerRef.current = setInterval(() => {
-			void tick();
-		}, tickMs);
-	}, [tickMs]);
-
-	/**
-	 * 根据 pollMap 是否为空决定 start 或 stop
-	 * register / unregister 之后都会调用
-	 */
-	const ensureStarted = useCallback(() => {
-		const map = getPollMap();
-		if (Object.keys(map).length > 0) start();
-		else stop();
-	}, [getPollMap, start, stop]);
-
-	/**
-	 * 将 job 纳入调度队列
-	 * @param jobId 任务 id
-	 * @param delayMs 首次 poll 延迟（默认 0）
-	 * 若 jobId 已在 pollMap 中则 no-op（防重复 register / 幂等 submit）
-	 */
-	const register = useCallback(
-		(jobId: string, delayMs = 0) => {
-			setPollMap((prev) => {
-				if (prev[jobId]) return prev;
-				return {
-					...prev,
-					[jobId]: {
-						job_id: jobId,
-						nextPollAt: Date.now() + delayMs,
-						inFlight: false,
-					},
-				};
-			});
-			ensureStarted();
-		},
-		[setPollMap, ensureStarted]
-	);
-
-	/**
 	 * 从 pollMap 移除 job（终态或业务取消时）
 	 * 若移除后 map 为空则 stop 主循环
 	 */
 	const unregister = useCallback(
-		(jobId: string) => {
-			setPollMap((prev) => {
-				const next = { ...prev };
+		function unregisterJob(jobId: string) {
+			setPollMap(function removeEntry(prev) {
+				const next: PollMap = { ...prev };
 				delete next[jobId];
 				return next;
 			});
+
 			const map = getPollMap();
-			if (Object.keys(map).length === 0) stop();
+			if (isPollMapEmpty(map)) {
+				stop();
+			}
 		},
 		[setPollMap, getPollMap, stop]
 	);
@@ -238,52 +263,66 @@ export function useJobPollScheduler(options: UseJobPollSchedulerOptions) {
 	 * 终态 → unregister；进行中 → 更新 nextPollAt；异常 → 退避保留
 	 */
 	const pollOnce = useCallback(
-		async (entry: PollEntry) => {
-			setPollMap((prev) => ({
-				...prev,
-				[entry.job_id]: { ...prev[entry.job_id], inFlight: true },
-			}));
+		async function pollOnceEntry(entry: PollEntry) {
+			setPollMap(function markInFlight(prev) {
+				const existing = prev[entry.job_id];
+				return {
+					...prev,
+					[entry.job_id]: {
+						...existing,
+						inFlight: true,
+					},
+				};
+			});
 
 			try {
 				const job = await fetchJobStatus(entry.job_id);
 				onJobUpdate(job);
 
 				if (isTerminal(job.status)) {
-					onJobTerminal?.(job);
+					if (onJobTerminal !== undefined) {
+						onJobTerminal(job);
+					}
 					unregister(entry.job_id);
 					return;
 				}
 
 				if (isInFlight(job.status)) {
-					const delay = job.next_poll_after ?? DEFAULT_BACKOFF_MS;
-					setPollMap((prev) => ({
-						...prev,
-						[entry.job_id]: {
-							job_id: entry.job_id,
-							nextPollAt: Date.now() + delay,
-							inFlight: false,
-						},
-					}));
+					const delay = resolvePollDelay(job);
+					setPollMap(function scheduleNext(prev) {
+						return {
+							...prev,
+							[entry.job_id]: {
+								job_id: entry.job_id,
+								nextPollAt: Date.now() + delay,
+								inFlight: false,
+							},
+						};
+					});
 					return;
 				}
 
-				setPollMap((prev) => ({
-					...prev,
-					[entry.job_id]: {
-						job_id: entry.job_id,
-						nextPollAt: Date.now() + DEFAULT_BACKOFF_MS,
-						inFlight: false,
-					},
-				}));
+				setPollMap(function scheduleUnknownStatus(prev) {
+					return {
+						...prev,
+						[entry.job_id]: {
+							job_id: entry.job_id,
+							nextPollAt: Date.now() + DEFAULT_BACKOFF_MS,
+							inFlight: false,
+						},
+					};
+				});
 			} catch {
-				setPollMap((prev) => ({
-					...prev,
-					[entry.job_id]: {
-						job_id: entry.job_id,
-						nextPollAt: Date.now() + DEFAULT_BACKOFF_MS,
-						inFlight: false,
-					},
-				}));
+				setPollMap(function scheduleBackoff(prev) {
+					return {
+						...prev,
+						[entry.job_id]: {
+							job_id: entry.job_id,
+							nextPollAt: Date.now() + DEFAULT_BACKOFF_MS,
+							inFlight: false,
+						},
+					};
+				});
 			}
 		},
 		[setPollMap, onJobUpdate, onJobTerminal, unregister]
@@ -292,55 +331,137 @@ export function useJobPollScheduler(options: UseJobPollSchedulerOptions) {
 	/**
 	 * 主循环每一拍：取到期且未 inFlight 的条目，在并发槽内 fire pollOnce
 	 */
-	const tick = useCallback(async () => {
-		const map = getPollMap();
-		const entries = Object.values(map);
-		if (entries.length === 0) {
-			stop();
-			return;
-		}
+	const tick = useCallback(
+		async function tickScheduler() {
+			const map = getPollMap();
+			const entries = Object.values(map);
 
-		const now = Date.now();
-		const inFlightCount = entries.filter((e) => e.inFlight).length;
-		const slots = maxConcurrency - inFlightCount;
-		if (slots <= 0) return;
+			if (entries.length === 0) {
+				stop();
+				return;
+			}
 
-		const due = entries
-			.filter((e) => !e.inFlight && e.nextPollAt <= now)
-			.sort((a, b) => a.nextPollAt - b.nextPollAt)
-			.slice(0, slots);
+			const now = Date.now();
+			const inFlightCount = countInFlight(entries);
+			const slots = maxConcurrency - inFlightCount;
 
-		for (const entry of due) {
-			void pollOnce(entry);
-		}
-	}, [getPollMap, maxConcurrency, pollOnce, stop]);
+			if (slots <= 0) {
+				return;
+			}
+
+			const due = pickDueEntries(entries, now, slots);
+
+			for (let i = 0; i < due.length; i++) {
+				const entry = due[i];
+				void pollOnce(entry);
+			}
+		},
+		[getPollMap, maxConcurrency, pollOnce, stop]
+	);
+
+	tickRef.current = tick;
+
+	/**
+	 * 启动主循环（已运行则忽略）
+	 * 每 tickMs 执行一次 tick()
+	 */
+	const start = useCallback(
+		function startScheduler() {
+			if (runningRef.current) {
+				return;
+			}
+			runningRef.current = true;
+			loopTimerRef.current = setInterval(function onTickInterval() {
+				void tickRef.current();
+			}, tickMs);
+		},
+		[tickMs]
+	);
+
+	/**
+	 * 根据 pollMap 是否为空决定 start 或 stop
+	 * register / unregister 之后都会调用
+	 */
+	const ensureStarted = useCallback(
+		function ensureSchedulerStarted() {
+			const map = getPollMap();
+			if (isPollMapEmpty(map)) {
+				stop();
+			} else {
+				start();
+			}
+		},
+		[getPollMap, start, stop]
+	);
+
+	/**
+	 * 将 job 纳入调度队列
+	 * @param jobId 任务 id
+	 * @param delayMs 首次 poll 延迟（默认 0）
+	 * 若 jobId 已在 pollMap 中则 no-op（防重复 register / 幂等 submit）
+	 */
+	const register = useCallback(
+		function registerJob(jobId: string, delayMs?: number) {
+			let delay = 0;
+			if (delayMs !== undefined) {
+				delay = delayMs;
+			}
+
+			setPollMap(function addEntry(prev) {
+				if (prev[jobId]) {
+					return prev;
+				}
+				return {
+					...prev,
+					[jobId]: {
+						job_id: jobId,
+						nextPollAt: Date.now() + delay,
+						inFlight: false,
+					},
+				};
+			});
+
+			ensureStarted();
+		},
+		[setPollMap, ensureStarted]
+	);
 
 	/**
 	 * 首屏 / 刷新恢复：对 queued | processing 批量 register
 	 */
 	const registerFromJobs = useCallback(
-		(jobs: { job_id: string; status: JobStatus }[]) => {
-			jobs.filter((j) => isInFlight(j.status)).forEach((j) => register(j.job_id, 0));
+		function registerFromJobList(jobs: { job_id: string; status: JobStatus }[]) {
+			for (let i = 0; i < jobs.length; i++) {
+				const job = jobs[i];
+				if (isInFlight(job.status)) {
+					register(job.job_id, 0);
+				}
+			}
 		},
 		[register]
 	);
 
 	/** 组件卸载时停止 interval，避免泄漏 */
-	useEffect(() => {
-		return () => stop();
-	}, [stop]);
+	useEffect(
+		function cleanupSchedulerOnUnmount() {
+			return function cleanup() {
+				stop();
+			};
+		},
+		[stop]
+	);
 
 	return {
 		/** 纳入轮询（submit 成功、恢复进行中的 job） */
-		register,
+		register: register,
 		/** 移出轮询（终态） */
-		unregister,
+		unregister: unregister,
 		/** 首屏/刷新批量纳入 */
-		registerFromJobs,
+		registerFromJobs: registerFromJobs,
 		/** 手动根据 pollMap 启停循环 */
-		ensureStarted,
+		ensureStarted: ensureStarted,
 		/** 手动停止循环 */
-		stop,
+		stop: stop,
 	};
 }
 
@@ -349,14 +470,22 @@ export function useJobPollScheduler(options: UseJobPollSchedulerOptions) {
 // -----------------------------------------------------------------------------
 
 function useGlobalJobController() {
-	const setPollMap = useGlobalStore((s: GlobalState) => s.setPollMap);
-	const patchJob = useGlobalStore((s: GlobalState) => s.patchJob);
+	const setPollMap = useGlobalStore(function selectSetPollMap(s: GlobalState) {
+		return s.setPollMap;
+	});
+	const patchJob = useGlobalStore(function selectPatchJob(s: GlobalState) {
+		return s.patchJob;
+	});
 
 	const scheduler = useJobPollScheduler({
-		getPollMap: () => useGlobalStore.getState().pollMap,
-		setPollMap,
-		onJobUpdate: (job) => patchJob(job.job_id, job),
-		onJobTerminal: (job) => {
+		getPollMap: function getPollMapFromStore() {
+			return useGlobalStore.getState().pollMap;
+		},
+		setPollMap: setPollMap,
+		onJobUpdate: function handleJobUpdate(job: JobPollState) {
+			patchJob(job.job_id, job);
+		},
+		onJobTerminal: function handleJobTerminal(job: JobPollState) {
 			if (job.status === "succeeded") {
 				// 可选：GET /jobs/{id}/result
 			}
@@ -365,21 +494,21 @@ function useGlobalJobController() {
 	});
 
 	/** 列表行 Optimize：submit → 乐观更新 → register */
-	const onOptimize = async (row: Record<string, unknown>) => {
+	async function onOptimize(row: Record<string, unknown>) {
 		const res = await submitJob(row);
 		if (!res.is_idempotent_hit) {
 			patchJob(res.job_id, { status: "queued", progress: 0, ...row });
 		}
 		scheduler.register(res.job_id, 0);
-	};
+	}
 
 	/** Dashboard mount（fetch:true）：拉列表 → 恢复轮询 */
-	const onDashboardMount = async () => {
+	async function onDashboardMount() {
 		const list = await fetchJobs();
 		scheduler.registerFromJobs(list);
-	};
+	}
 
-	return { scheduler, onOptimize, onDashboardMount };
+	return { scheduler: scheduler, onOptimize: onOptimize, onDashboardMount: onDashboardMount };
 }
 
 // --- 示意用类型，实际项目替换 ---
