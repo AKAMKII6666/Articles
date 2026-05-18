@@ -183,7 +183,7 @@ self.addEventListener('fetch', event => {
   );
 });
 
-需要注意的是serviceWorker需要用https协议才能支持，否则不支持
+需要注意的是serviceWorker需要用https协议或者localhost才能支持，否则不支持
 
 -------------------------------------------------------------------------------------
 Push Cache

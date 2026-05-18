@@ -102,18 +102,29 @@ export const thousandsSplit = function (_str) {
 		return _str;
 	}
 
-	if (typeof _str !== "string") {
-		return _str;
+	if (typeof _str !== "string" && typeof _str === "number") {
+		_str = _str.toString();
 	}
 
-	return _str
-		.split("")
-		.reverse()
-		.reduce(function (acc, item, index) {
-			if (index % 3 === 0 && index !== 0) {
-				acc = "," + acc;
-			}
-			acc = item + acc;
-			return acc;
-		}, _str.split("").reverse()[0]);
+	let intgerPart = "";
+	let floatPart = "";
+	if (_str.indexOf(".") !== -1) {
+		intgerPart = _str.split(".")[0];
+		floatPart = "." + _str.split(".")[1];
+	} else {
+		intgerPart = _str;
+	}
+
+	return (
+		intgerPart
+			.split("")
+			.reverse()
+			.reduce(function (acc, item, index) {
+				if (index % 3 === 0 && index !== 0) {
+					acc = "," + acc;
+				}
+				acc = item + acc;
+				return acc;
+			}, "") + floatPart
+	);
 };

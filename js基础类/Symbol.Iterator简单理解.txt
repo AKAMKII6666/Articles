@@ -1,4 +1,13 @@
 
+symbol 不想让别人当普通字段乱用、又不想和字符串键冲突
+我可以定义
+var CACHE = Symbol('myWidget.cache');
+obj[CACHE] = "xxx"
+
+然后 obj.myWidget.cache 这样直接拿是根本不可能拿到值的
+只能 obj[CACHE] // "xxx"  这样拿值
+主要功能是给某个对象注入一个外部不可见（但只有开发者知晓）的属性
+
 1.symbol是什么？
 2.Itertor是什么?
 3.symbol的内置符号symbol.Iterator,有什么用?
