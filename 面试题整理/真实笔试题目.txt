@@ -1,0 +1,20 @@
+写一个缓存钩子，实现一次进，之后取钩子内容为缓存的内容，不随数据更改
+
+export const useCustomMemoHook =function({value}){
+	const memoValue =  useRef(value)
+	return memoValue;
+}
+
+这道题虽然简单，但是考验程序员在面试时的反应能力，对于react运行机制的理解。
+
+
+---------------------------------------------------------------------
+
+写一个并发处理器，最多处理n个并发任务，不能切片运行，而是内部保持一个任务组，任务组内大于n个任务就让没加入运行的任务等待，有空位就插入
+
+export const promiseAllLimited = function({tasks,maxRunning}){
+	let runningQueue = [];
+	return new Promise(function(_rej,_res){
+		
+	});
+}

@@ -1,0 +1,77 @@
+{
+	"files.associations": {
+		"*.vue": "vue",
+		".prettierrc": "json"
+	},
+	"eslint.options": {
+		"extensions": [".js", ".vue"]
+	},
+	"search.exclude": {
+		"**/node_modules": true,
+		"**/bower_components": true,
+		"**/dist": true
+	},
+	"emmet.syntaxProfiles": {
+		"javascript": "jsx",
+		"vue": "html",
+		"vue-html": "html"
+	},
+	"git.confirmSync": false,
+	"editor.renderWhitespace": "boundary",
+	"editor.cursorBlinking": "smooth",
+	"editor.minimap.renderCharacters": false,
+	"window.title": "${dirty}${activeEditorMedium}${separator}${rootName}",
+	"editor.codeLens": true,
+	"editor.snippetSuggestions": "top",
+	"explorer.confirmDelete": false,
+	"editor.codeActionsOnSave": {
+		"source.fixAll.eslint": "explicit"
+	},
+	"editor.formatOnPaste": true,
+	"editor.formatOnSave": true,
+	"files.autoSave": "onFocusChange",
+	"prettier.printWidth": 160,
+	"editor.tabSize": 4,
+	"prettier.tabWidth": 4,
+	"editor.indentSize": "tabSize",
+	"tabnine.experimentalAutoImports": true,
+	"javascript.updateImportsOnFileMove.enabled": "always",
+	"bitoAI.codeCompletion.enableAutoCompletion": false,
+	"bitoAI.codeCompletion.enableCommentToCode": true,
+	"[sql]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[aspx]": {
+		"editor.defaultFormatter": "yanpp22.aspnet-beautify"
+	},
+	"[markdown]": {
+		"editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
+	},
+	"editor.largeFileOptimizations": false,
+	"security.workspace.trust.untrustedFiles": "open",
+	"typescript.updateImportsOnFileMove.enabled": "always",
+	"px2rem-plus.base": 14,
+	"prettier.eslintIntegration": true,
+	"prettier.parser": "babel",
+	"prettier.stylelintIntegration": true,
+	"prettier.tslintIntegration": true,
+	"prettier.resolveGlobalModules": true,
+	"editor.insertSpaces": false,
+	"cssrem.rootFontSize": 14,
+	"editor.detectIndentation": false,
+	"prettier.useTabs": true,
+	"vs-code-prettier-eslint.prettierLast": true,
+	"prettier.useEditorConfig": false,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"px2rem-plus.twoWayConversion": true,
+	"pxToEm.rootFontSize": 14,
+	"transform.multiplier": 0.07142857142857142,
+	"transform.targetUnit": "em",
+	"transform.unitPrecision": 6,
+	"explorer.confirmDragAndDrop": false,
+	"git.openRepositoryInParentFolders": "never",
+	"[svg]": {
+		"editor.defaultFormatter": "jock.svg"
+	},
+	"explorer.confirmPasteNative": false
+}

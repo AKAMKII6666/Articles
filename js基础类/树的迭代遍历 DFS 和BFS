@@ -45,6 +45,172 @@ var tree = {
     }
 }
 
+帮忙把这个树，以栈的方式后序转换：
+let menuTree = 
+[
+        {
+            "pageNum": 1,
+            "pageSize": 10,
+            "createById": 1,
+            "createBy": "超管1",
+            "createByTime": "2024-12-27T14:45:39",
+            "updateById": 1,
+            "updateBy": "超管1",
+            "updateByTime": "2024-12-27T14:45:39",
+            "params": null,
+            "id": 29,
+            "name": "页面配置",
+            "parentId": 0,
+            "sort": 0,
+            "frontPath": "/management/bannersettings",
+            "backPath": "",
+            "type": "M",
+            "status": "0",
+            "perms": "",
+            "icon": "assembly",
+            "systemId": 1,
+            "checked": false,
+            "menuChildren": [
+                {
+                    "pageNum": 1,
+                    "pageSize": 10,
+                    "createById": 1,
+                    "createBy": "超管1",
+                    "createByTime": "2024-12-27T14:46:42",
+                    "updateById": 1,
+                    "updateBy": "超管1",
+                    "updateByTime": "2024-12-27T14:46:58",
+                    "params": null,
+                    "id": 31,
+                    "name": "首页配置",
+                    "parentId": 29,
+                    "sort": 0,
+                    "frontPath": "/management/bannersettings",
+                    "backPath": "/management/bannersettings",
+                    "type": "C",
+                    "status": "0",
+                    "perms": "user",
+                    "icon": "assembly",
+                    "systemId": 1,
+                    "checked": false,
+                    "menuChildren": []
+                },
+                {
+                    "pageNum": 1,
+                    "pageSize": 10,
+                    "createById": 1,
+                    "createBy": "超管1",
+                    "createByTime": "2024-12-27T14:47:54",
+                    "updateById": 1,
+                    "updateBy": "超管1",
+                    "updateByTime": "2024-12-27T14:47:54",
+                    "params": null,
+                    "id": 32,
+                    "name": "资讯动态",
+                    "parentId": 29,
+                    "sort": 0,
+                    "frontPath": "/management/news",
+                    "backPath": "/management/news",
+                    "type": "C",
+                    "status": "0",
+                    "perms": "user",
+                    "icon": "IconCreditCard",
+                    "systemId": 1,
+                    "checked": false,
+                    "menuChildren": []
+                }
+            ]
+        },
+        {
+            "pageNum": 1,
+            "pageSize": 10,
+            "createById": 1,
+            "createBy": "超管1",
+            "createByTime": "2024-12-27T14:46:08",
+            "updateById": 1,
+            "updateBy": "超管1",
+            "updateByTime": "2024-12-27T14:46:08",
+            "params": null,
+            "id": 30,
+            "name": "访客管理",
+            "parentId": 0,
+            "sort": 0,
+            "frontPath": "/management/visitorManagement\t",
+            "backPath": "",
+            "type": "M",
+            "status": "0",
+            "perms": "",
+            "icon": "userCog",
+            "systemId": 1,
+            "checked": false,
+            "menuChildren": [
+                {
+                    "pageNum": 1,
+                    "pageSize": 10,
+                    "createById": 1,
+                    "createBy": "超管1",
+                    "createByTime": "2024-12-27T14:48:39",
+                    "updateById": 1,
+                    "updateBy": "超管1",
+                    "updateByTime": "2024-12-27T14:48:39",
+                    "params": null,
+                    "id": 33,
+                    "name": "访客管理",
+                    "parentId": 30,
+                    "sort": 0,
+                    "frontPath": "/management/visitorManagement",
+                    "backPath": "/management/visitorManagement",
+                    "type": "C",
+                    "status": "0",
+                    "perms": "user",
+                    "icon": "userCog",
+                    "systemId": 1,
+                    "checked": false,
+                    "menuChildren": null
+                }
+            ]
+        }
+    ]
+转换成这样的：
+	let b= [
+        {
+            title: "页面配置",
+            icon: "assembly",
+            type: 'group',
+            children: [
+                {
+                    title: "首页配置",
+					icon: "assembly",
+					type: 'item',
+					url: '/management/news',
+					 target: false
+                },
+                {
+					title: "资讯动态",
+					icon: "IconCreditCard",
+					type: 'item',
+					url: '/management/bannersettings',
+					target: false
+                }
+            ]
+        },
+        {
+            title: "访客管理",
+            icon: "userCog",
+            type: 'group',
+            children: [
+                {
+                    title: "访客管理",
+                    icon: "userCog",
+                    type: 'item',
+                    url: "/management/visitorManagement",
+                    target: false
+                }
+            ]
+        }
+    ]
+要求是  type = "M"的节点对应"group" type = "C"的节点对应"item"type = "F"的节点就忽略掉不要了
+
 var firstSearch = function(_tree){
     if(typeof _tree !== 'object' || _tree === null){
         return _tree;
