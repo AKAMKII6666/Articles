@@ -200,22 +200,20 @@ export interface UseJobPollSchedulerOptions {
  * 返回 register / unregister / registerFromJobs 等，供 globalStoreControllerHook 调用。
  * 内部维护唯一 setInterval，不暴露给业务组件。
  */
-export function useJobPollScheduler(options: UseJobPollSchedulerOptions) {
-	const getPollMap = options.getPollMap;
-	const setPollMap = options.setPollMap;
-	const onJobUpdate = options.onJobUpdate;
-	const onJobTerminal = options.onJobTerminal;
-
-	let maxConcurrency = MAX_CONCURRENCY;
-	if (options.maxConcurrency !== undefined) {
-		maxConcurrency = options.maxConcurrency;
-	}
-
-	let tickMs = TICK_MS;
-	if (options.tickMs !== undefined) {
-		tickMs = options.tickMs;
-	}
-
+export function useJobPollScheduler({
+	/** 读取当前 pollMap */
+	getPollMap,
+	/** 更新 pollMap */
+	setPollMap,
+	/** 每次 poll 成功拿到 JobPollState 后，合并到 jobs[] / productList */
+	onJobUpdate,
+	/** 进入终态时、unregister 之前：toast、拉 result 等 */
+	onJobTerminal,
+	/** 并发上限，默认 5 */
+	maxConcurrency = MAX_CONCURRENCY,
+	/** tick 间隔，默认 500ms */
+	tickMs = TICK_MS,
+}: UseJobPollSchedulerOptions) {
 	/** 调度器主循环是否在跑 */
 	const runningRef = useRef(false);
 
