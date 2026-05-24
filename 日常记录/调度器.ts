@@ -524,3 +524,30 @@ declare function submitJob(row: Record<string, unknown>): Promise<{
 	is_idempotent_hit?: boolean;
 }>;
 declare function fetchJobs(): Promise<{ job_id: string; status: JobStatus }[]>;
+
+function readVideoUrl(videoEl) {
+	var el = videoEl;
+	if (!el) return "";
+	if (el.currentSrc) {
+		return el.currentSrc;
+	}
+	var srcAttr = el.getAttribute("src");
+	if (srcAttr) {
+		return srcAttr;
+	}
+	var source = el.querySelector("source");
+	if (source) {
+		var sourceSrc = source.getAttribute("src");
+		if (sourceSrc) {
+			return sourceSrc;
+		}
+	}
+	var dataNames = ["data-src", "data-video-url", "data-source"];
+	for (var i = 0; i < dataNames.length; i++) {
+		var v = el.getAttribute(dataNames[i]);
+		if (v) {
+			return v;
+		}
+	}
+	return "";
+}
